@@ -49,10 +49,10 @@ const server = http.createServer(async (req, res) => {
       try {
         const brief = JSON.parse(buf || "{}");
         const pageCount = Math.min(50, Math.max(1, parseInt(String(brief.pageCount), 10) || 5));
+        const deckTitle =
+          String(brief.deckTitle != null ? brief.deckTitle : brief.purpose != null ? brief.purpose : "").trim();
         const result = await generateSlidesFromBrief({
-          purpose: String(brief.purpose ?? ""),
-          audience: String(brief.audience ?? ""),
-          type: String(brief.type ?? "explain"),
+          deckTitle,
           pageCount,
         });
         send(

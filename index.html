@@ -11,14 +11,14 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=4" />
+    <link rel="stylesheet" href="styles.css?v=5" />
   </head>
   <body class="app-unified">
     <header class="app-header">
       <div class="app-header-brand">
-        <p class="app-header-eyebrow">構成・下書き</p>
+        <p class="app-header-eyebrow">レイアウト・配置</p>
         <h1>スライド内容案</h1>
-        <p>一覧でスライドを選び、<strong>下の枠がそのままプレビュー</strong>です。タイトルは枠内をクリックして編集。本文は記法どおりに書くと表・箇条書き・左画像レイアウトに整形されます。</p>
+        <p>一覧でスライドを選び、<strong>下の枠がそのままプレビュー</strong>です。タイトルは枠内をクリックして編集。本文は <code>:::cards</code> などの記法で<strong>ブロック配置</strong>を決めます。</p>
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-secondary" id="btn-export-html">HTML を書き出し</button>
@@ -26,62 +26,47 @@
       </div>
     </header>
 
-    <section class="brief-panel" aria-label="構成のたたき台">
+    <section class="brief-panel" aria-label="レイアウトのたたき台">
       <div class="brief-panel-top">
         <div class="brief-intro">
-          <h2 class="brief-heading">構成のたたき台</h2>
+          <h2 class="brief-heading">レイアウトのたたき台</h2>
           <p class="brief-lead">
-            主目的・対象者・種別・ページ数から「構成を生成」で仮スライドを並べます。本文は表・箇条書き・
+            <strong>資料タイトル</strong>と<strong>枚数</strong>だけで「レイアウトひな形を生成」できます。各スライドには
+            <code>:::cards</code>
+            ／
+            <code>:::compare</code>
+            ／
+            <code>:::table</code>
+            ／
             <code>:::media</code>
-            （左画像）のいずれかで構造化してください。
+            など、<strong>配置用の記法</strong>が入ります（役割・主メッセージ・根拠などのストーリー前提はありません）。
           </p>
         </div>
         <div class="brief-actions-col">
           <div class="brief-actions-row">
-            <button type="button" class="btn btn-primary btn-generate" id="btn-generate-outline">構成を生成（テンプレ）</button>
-            <button type="button" class="btn btn-primary" id="btn-generate-openai">OpenAI で構成を生成</button>
+            <button type="button" class="btn btn-primary btn-generate" id="btn-generate-outline">レイアウトひな形を生成</button>
+            <button type="button" class="btn btn-primary" id="btn-generate-openai">OpenAI でレイアウト案を生成</button>
           </div>
           <p class="openai-hint" id="openai-hint">
             <strong>OpenAI:</strong>
             Vercel の Environment Variables に <code>OPENAI_API_KEY</code> を登録。手元は <code>npm run dev</code> →
             <code>http://localhost:8787/</code>
-            。生成時は <code>lib/training-deck-style-rules.md</code>（研修ご案内資料ベースのルール）を system に読み込みます。
+            。返り値は各スライド <code>:::subtitle</code> ＋ブロック記法で<strong>デザインの当て方</strong>を返します（<code>lib/training-deck-style-rules.md</code> は記法のボリューム感の参考）。
           </p>
         </div>
       </div>
       <div class="brief-grid">
         <div class="field field-purpose">
-          <label for="brief-purpose">1. スライドの主目的</label>
+          <label for="brief-deck-title">資料タイトル（表紙・生成の参考）</label>
           <textarea
-            id="brief-purpose"
-            name="brief-purpose"
-            rows="3"
-            placeholder="例：新サービスの導入メリットを経営層に理解してもらい、次回の詳細検討会の合意を得る"
+            id="brief-deck-title"
+            name="brief-deck-title"
+            rows="2"
+            placeholder="例：〇〇のご紹介"
           ></textarea>
         </div>
         <div class="field">
-          <label for="brief-audience">2. 対象者</label>
-          <input
-            type="text"
-            id="brief-audience"
-            name="brief-audience"
-            autocomplete="off"
-            placeholder="例：経営企画部の部長クラス"
-          />
-        </div>
-        <div class="field">
-          <label for="brief-type">3. 種別</label>
-          <select id="brief-type" name="brief-type">
-            <option value="proposal">提案</option>
-            <option value="report">報告・共有</option>
-            <option value="training">研修・教育</option>
-            <option value="sales">営業・紹介</option>
-            <option value="explain" selected>説明・プレゼン</option>
-            <option value="other">その他</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="brief-pages">4. ページ数</label>
+          <label for="brief-pages">枚数</label>
           <input type="number" id="brief-pages" name="brief-pages" min="1" max="50" value="5" />
         </div>
       </div>
@@ -152,6 +137,6 @@
       </div>
     </main>
 
-    <script src="client.js?v=4"></script>
+    <script src="client.js?v=5"></script>
   </body>
 </html>
