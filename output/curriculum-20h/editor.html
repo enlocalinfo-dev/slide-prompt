@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>カリキュラム原稿の編集 · Genspark プロンプト</title>
+    <link rel="stylesheet" href="assets/slides.css" />
+    <link rel="stylesheet" href="assets/editor.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="editor-header">
+        <div class="editor-header-row">
+          <div>
+            <h1 class="editor-title">カリキュラム原稿の編集（全 23 枚・セクション3）</h1>
+            <p id="saved-hint" class="editor-status" style="margin: 0.25rem 0 0"></p>
+          </div>
+          <div class="editor-actions">
+            <a class="btn btn-ghost" href="index.html">一覧へ</a>
+            <button type="button" class="btn" id="btn-save-now">今すぐ保存</button>
+            <button type="button" class="btn" id="btn-reset-default">初期データに戻す</button>
+            <button type="button" class="btn" id="btn-export-json" title="リポジトリの slides-data.json と差し替え可能">保存データをJSONでダウンロード</button>
+          </div>
+        </div>
+        <p id="editor-status" class="editor-status" role="status" aria-live="polite"></p>
+      </header>
+
+      <p style="margin: 0.75rem 0; font-size: 0.85rem; color: var(--muted); max-width: 52rem">
+        各スライドの文言を編集し、最後に<strong>保存</strong>します。保存した内容を改変せずに Genspark
+        用のプロンプトに埋め込みます（別途「画面上の内容で生成」も利用可）。
+      </p>
+
+      <div id="slide-form-root"></div>
+
+      <footer class="editor-footer">
+        <div class="editor-footer-inner">
+          <h2>1. 保存</h2>
+          <p style="margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--muted)">
+            編集内容をブラウザ（localStorage）に保存します。完了したら次のステップへ。
+          </p>
+          <div class="footer-actions">
+            <button type="button" class="btn btn-primary" id="btn-final-save">編集を完了して保存</button>
+          </div>
+
+          <section class="genspark-section" aria-labelledby="genspark-head">
+            <h3 id="genspark-head">2. Genspark 用プロンプト</h3>
+            <p class="genspark-note">
+              <strong>保存済みの文章をベースにする:</strong> 先に上記で保存してください。→
+              「保存データでプロンプト生成」で、原文をそのまま埋め込んだ指示文を作ります。<br />
+              <strong>まだ保存していない下書きで試す:</strong> 「画面の内容でプロンプト生成」を使います。
+            </p>
+            <div class="genspark-actions">
+              <button type="button" class="btn btn-primary" id="btn-genspark">保存データでプロンプト生成</button>
+              <button type="button" class="btn" id="btn-genspark-from-form">画面の内容でプロンプト生成</button>
+              <button type="button" class="btn" id="btn-copy-prompt">コピー</button>
+            </div>
+            <label for="genspark-prompt-out" class="sr-only">生成されたプロンプト</label>
+            <textarea id="genspark-prompt-out" readonly rows="14" placeholder="ここにプロンプトが表示されます"></textarea>
+          </section>
+        </div>
+      </footer>
+    </div>
+    <script src="editor.js"></script>
+  </body>
+</html>

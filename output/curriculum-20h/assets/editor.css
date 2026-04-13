@@ -1,0 +1,203 @@
+/* カリキュラム編集・Genspark プロンプト用 */
+
+.editor-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.65rem 0 0.85rem;
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.editor-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.editor-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.08);
+}
+
+.btn-primary {
+  background: #0ea5e9;
+  border-color: #0284c7;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+}
+
+.editor-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.editor-status.is-ok {
+  color: #4ade80;
+}
+
+.editor-status.is-warn {
+  color: #fbbf24;
+}
+
+.slide-block {
+  margin: 1.5rem 0;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.slide-block h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.field-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.field-grid label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.field-grid input[type="text"],
+.field-grid textarea {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.88rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0f172a;
+  color: var(--text);
+}
+
+.field-grid textarea {
+  min-height: 5rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.editor-footer {
+  margin: 2rem -1rem 0;
+  padding: 1.25rem 1rem 2rem;
+  border-top: 1px solid var(--border);
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.editor-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.editor-footer h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.genspark-section {
+  margin-top: 1.5rem;
+}
+
+.genspark-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.genspark-section textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f172a;
+  color: var(--text);
+  resize: vertical;
+}
+
+.genspark-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.genspark-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

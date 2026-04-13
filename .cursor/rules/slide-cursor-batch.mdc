@@ -1,0 +1,13 @@
+---
+description: スライド用 HTML/CSS を Cursor で生成するときの出力形式（batch / output）
+globs: batch/**,output/**
+alwaysApply: false
+---
+
+# スライド HTML 生成（このプロジェクト）
+
+- ブリーフは `batch/brief.template.md` 形式またはユーザーが埋めた `brief*.md` を前提にする。
+- 成果物は **`output/deck.html` を 1 ファイル**にまとめ、CSS は `<style>` 内に書く（デザインはシンプルでよいが、16:9 のスライド枠が分かること）。
+- 本文は **具体文**（箇条書き各項目が 1〜2 文）。見出しだけのプレースホルダにしない。
+- **分量・トーン**は `batch/slide-tonmana-rules.md` を参照（厳密なルールではない）。法人向け提案PDFに近い **情報密度（目安4〜7箇条書き／枚）** と **です・ます調** を意識する。
+- ユーザーが Genspark 用プロンプトに進む前の **文章ドラフト**として読める密度を意識する。
