@@ -19,15 +19,16 @@ const LAYOUT_PRESETS = [
   { id: "media", label: "左画像", hint: "画像＋右テキスト" },
 ];
 
-/** 本文が空のときだけ、レイアウト選択で挿入するひな形 */
+/** 本文が空のときだけ、レイアウト選択で挿入するひな形（先頭は :::subtitle → デザインパターン） */
 const LAYOUT_STARTERS = {
-  vscode: `### 画面構成\n- 左: サイドバー\n- 中央: エディタ\n- 右: パネル`,
-  cols3: `:::table\n| 列A | 列B | 列C |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n:::`,
-  cards: `:::cards\n### カード1\n- 要点\n### カード2\n- 要点\n### カード3\n- 要点\n:::`,
-  section: `### このセクションのメッセージ\n- 次の論点への橋渡し`,
-  toc: `## 本日の流れ\n1. イントロダクション\n2. 本論\n3. まとめ`,
-  compare: `:::compare\n### 現状\n- 課題\n### 提案後\n- 効果\n:::`,
-  media: `:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### ポイント\n- 左に画像・右に説明\n- URLは1行目（または ![alt](URL) ）\n:::`,
+  default: `:::subtitle\n聞き手へのサブメッセージ（1行）\n:::\n\n:::cards\n### 論点A\n- 要点\n### 論点B\n- 要点\n### 論点C\n- 要点\n:::`,
+  vscode: `:::subtitle\n画面の役割を1行で\n:::\n\n### 画面構成\n- 左: サイドバー\n- 中央: エディタ\n- 右: パネル`,
+  cols3: `:::subtitle\n3カラムで整理するメッセージ\n:::\n\n:::table\n| 列A | 列B | 列C |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n:::`,
+  cards: `:::subtitle\n3カードで伝える要点\n:::\n\n:::cards\n### カード1\n- 要点\n### カード2\n- 要点\n### カード3\n- 要点\n:::`,
+  section: `:::subtitle\nこの章で伝えること（1行）\n:::\n\n:::cards\n### キーメッセージ\n- 一言\n### 次の論点\n- 橋渡し\n### 期待アクション\n- （編集）\n:::`,
+  toc: `:::subtitle\n進行のイメージ\n:::\n\n## 本日の流れ\n1. イントロダクション\n2. 本論\n3. まとめ`,
+  compare: `:::subtitle\n対比で見せるメリット\n:::\n\n:::compare\n### 左\n- 現状・課題\n### 右\n- 提案後・効果\n:::`,
+  media: `:::subtitle\nビジュアルとセットで伝える内容\n:::\n\n:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### ポイント\n- 左に画像・右に説明\n- URLは1行目（または ![alt](URL) ）\n:::`,
 };
 
 function normalizeLayout(id) {
@@ -88,53 +89,186 @@ const TYPE_LABELS = {
   other: "その他",
 };
 
+/** サブメッセージ（タイトル直下）＋本文ブロック */
+function slideSub(subtitle, bodyMd) {
+  return `:::subtitle\n${String(subtitle).trim()}\n:::\n\n${String(bodyMd).trim()}`;
+}
+
 /** @typedef {{ title: string, body: string | (ctx: object) => string }} SectionTpl */
 
 /** @type {Record<string, SectionTpl[]>} */
 const SECTION_POOLS = {
   proposal: [
-    { title: "背景・現状", body: (c) => `- いまの状況（事実・データ）\n- ${c.audience} にとっての文脈\n- （数値・根拠を追記）` },
-    { title: "課題・ニーズ", body: (c) => `- 解決すべき課題\n- 対象者（${c.audience}）のニーズ\n- （優先度・緊急度）` },
-    { title: "提案の概要", body: (c) => `- 提案の一言要約\n- 主目的「${truncateOneLine(c.purpose, 50)}」との対応\n- （編集してください）` },
-    { title: "ソリューション詳細", body: `- 具体的な仕組み・進め方\n- スコープ（含む／含まない）\n- （図・表の予定）` },
-    { title: "期待効果", body: `- 定性的効果\n- 定量的効果（目安）\n- （検証方法）` },
-    { title: "実施計画", body: `- マイルストーン\n- 体制・役割\n- （スケジュール表を追記）` },
-    { title: "投資対効果・条件", body: `- コスト・期間の目安\n- 前提条件・リスク\n- （承認に必要な情報）` },
+    {
+      title: "背景・現状",
+      body: (c) =>
+        slideSub(`${c.audience} にとっての現状`, `:::cards\n### 事実・データ\n- （根拠）\n### 文脈\n- ${c.audience} の視点\n### 数値・根拠\n- （追記）\n:::`),
+    },
+    {
+      title: "課題・ニーズ",
+      body: (c) =>
+        slideSub("解決すべき論点", `:::compare\n### 左\n- いまの課題（優先度・緊急度）\n### 右\n- ${c.audience} のニーズ・期待\n:::`),
+    },
+    {
+      title: "提案の概要",
+      body: (c) =>
+        slideSub("提案の一言", `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 要約 | （編集） |\n| 主目的との対応 | ${truncateOneLine(c.purpose, 45)} |\n| 差別化 | （編集） |\n:::`),
+    },
+    {
+      title: "ソリューション詳細",
+      body: () =>
+        slideSub("仕組みとスコープ", `:::cards\n### 進め方\n- ステップ\n### 含む範囲\n- （編集）\n### 含まない範囲\n- （編集）\n:::`),
+    },
+    {
+      title: "期待効果",
+      body: () =>
+        slideSub("効果のイメージ", `:::table\n| 種類 | 内容 | 目安 |\n| --- | --- | --- |\n| 定性的 | （編集） |  |\n| 定量的 | （編集） |  |\n| 検証 | （編集） |  |\n:::`),
+    },
+    {
+      title: "実施計画",
+      body: () =>
+        slideSub("マイルストーン", `:::cards\n### フェーズ1\n- 期限・成果物\n### フェーズ2\n- 体制\n### フェーズ3\n- リスク対応\n:::`),
+    },
+    {
+      title: "投資対効果・条件",
+      body: () =>
+        slideSub("条件とリスク", `:::compare\n### 左\n- 投資・期間の目安 / 前提条件\n### 右\n- リスクと対策\n:::`),
+    },
   ],
   report: [
-    { title: "エグゼクティブサマリー", body: (c) => `- 結論（1〜2行）\n- 主目的との関係\n- （${c.audience}向けに要約）` },
-    { title: "実施内容・経緯", body: `- 実施したこと\n- スケジュール\n- （成果物リンク）` },
-    { title: "進捗・結果", body: `- 計画比の進捗\n- 成果指標\n- （グラフ・表）` },
-    { title: "課題・リスク", body: `- いまの課題\n- 影響と対策\n- エスカレーション要否` },
-    { title: "次のステップ", body: `- 今後の予定\n- 依頼事項（関係者）\n- （期限）` },
+    {
+      title: "エグゼクティブサマリー",
+      body: (c) =>
+        slideSub(`${c.audience} 向け要約`, `:::cards\n### 結論\n- 1〜2行\n### 主目的との関係\n- （編集）\n### 次のアクション\n- （編集）\n:::`),
+    },
+    {
+      title: "実施内容・経緯",
+      body: () =>
+        slideSub("実施の整理", `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 実施内容 | （編集） |\n| スケジュール | （編集） |\n| 成果物 | リンク |\n:::`),
+    },
+    {
+      title: "進捗・結果",
+      body: () =>
+        slideSub("計画比と指標", `:::cards\n### 進捗\n- 計画比\n### 成果指標\n- （数値）\n### グラフ・表\n- （予定）\n:::`),
+    },
+    {
+      title: "課題・リスク",
+      body: () =>
+        slideSub("いまの論点", `:::cards\n### 課題\n- 内容\n### 影響と対策\n- （編集）\n### エスカレーション\n- 要否\n:::`),
+    },
+    {
+      title: "次のステップ",
+      body: () =>
+        slideSub("依頼と期限", `:::cards\n### 今後の予定\n- （編集）\n### 依頼事項\n- 関係者\n### 期限\n- （編集）\n:::`),
+    },
   ],
   training: [
-    { title: "本日のゴール", body: (c) => `- 学習目標（できるようになること）\n- 対象者: ${c.audience}\n- （前提知識）` },
-    { title: "キーポイント", body: `- 重要概念の整理\n- よくある誤解\n- （例・比喩）` },
-    { title: "手順・やり方", body: `- ステップ1〜\n- チェックポイント\n- （デモの予定）` },
-    { title: "演習・ディスカッション", body: `- 課題\n- 進め方\n- （時間配分）` },
-    { title: "まとめ（要点の再確認）", body: `- 3つの要点\n- 参考資料\n- （宿題・フォロー）` },
+    {
+      title: "本日のゴール",
+      body: (c) =>
+        slideSub("学習で得るもの", `:::table\n| 項目 | 内容 |\n| --- | --- |\n| できるようになること | （編集） |\n| 対象者 | ${c.audience} |\n| 前提知識 | （編集） |\n:::`),
+    },
+    {
+      title: "キーポイント",
+      body: () =>
+        slideSub("押さえる3点", `:::cards\n### 概念A\n- 整理\n### よくある誤解\n- （編集）\n### 例・比喩\n- （編集）\n:::`),
+    },
+    {
+      title: "手順・やり方",
+      body: () =>
+        slideSub("進め方", `:::cards\n### ステップ1\n- チェック\n### ステップ2\n- チェック\n### デモ\n- （予定）\n:::`),
+    },
+    {
+      title: "演習・ディスカッション",
+      body: () =>
+        slideSub("演習の進行", `:::compare\n### 左\n- 課題・進め方\n### 右\n- 時間配分・振り返り\n:::`),
+    },
+    {
+      title: "まとめ（要点の再確認）",
+      body: () =>
+        slideSub("持ち帰る3つ", `:::cards\n### 要点1\n- \n### 要点2\n- \n### 参考・宿題\n- \n:::`),
+    },
   ],
   sales: [
-    { title: "課題の確認", body: (c) => `- 顧客の状況・課題仮説\n- 本日のゴール\n- （${c.audience}の関心事）` },
-    { title: "ソリューション概要", body: `- 提供価値（一言）\n- 差別化ポイント\n- （導入イメージ）` },
-    { title: "機能・事例", body: `- 主要機能\n- 導入事例（業界・規模）\n- （実績数値）` },
-    { title: "進め方・体制", body: `- 導入ステップ\n- 支援内容\n- （期間・費用の枠）` },
-    { title: "次のアクション", body: `- 提案する次の打合せ\n- 必要情報・資料依頼\n- （クロージング）` },
+    {
+      title: "課題の確認",
+      body: (c) =>
+        slideSub("顧客の状況", `:::cards\n### 状況\n- （編集）\n### 本日のゴール\n- （編集）\n### ${c.audience} の関心事\n- （編集）\n:::`),
+    },
+    {
+      title: "ソリューション概要",
+      body: () =>
+        slideSub("提供価値", `:::compare\n### 左\n- 一言価値・差別化\n### 右\n- 導入イメージ\n:::`),
+    },
+    {
+      title: "機能・事例",
+      body: () =>
+        slideSub("根拠の提示", `:::table\n| 区分 | 内容 |\n| --- | --- |\n| 主要機能 | （編集） |\n| 事例（業界） | （編集） |\n| 実績数値 | （編集） |\n:::`),
+    },
+    {
+      title: "進め方・体制",
+      body: () =>
+        slideSub("導入の進め方", `:::cards\n### ステップ\n- （編集）\n### 支援内容\n- （編集）\n### 期間・費用の枠\n- （編集）\n:::`),
+    },
+    {
+      title: "次のアクション",
+      body: () =>
+        slideSub("クロージング", `:::cards\n### 次の打合せ\n- （編集）\n### 必要情報\n- （編集）\n### 宿題\n- （編集）\n:::`),
+    },
   ],
   explain: [
-    { title: "全体像", body: (c) => `- 何について話すか\n- なぜ今か\n- 対象者（${c.audience}）へのメリット` },
-    { title: "ポイント（要点）", body: `- 要点1\n- 要点2\n- 要点3` },
-    { title: "詳細・補足", body: `- 仕組み・ルール\n- 例外・注意点\n- （FAQ）` },
-    { title: "具体例", body: `- シナリオ\n- Before / After\n- （画面・図）` },
-    { title: "論点・確認事項", body: `- 決めたいこと\n- 確認したいこと\n- （次に必要な情報）` },
+    {
+      title: "全体像",
+      body: (c) =>
+        slideSub(`${c.audience} へのメリット`, `:::cards\n### テーマ\n- 何について\n### なぜ今か\n- 背景\n### メリット\n- 聞き手へ\n:::`),
+    },
+    {
+      title: "ポイント（要点）",
+      body: () =>
+        slideSub("3つの要点", `:::cards\n### 要点1\n- （編集）\n### 要点2\n- （編集）\n### 要点3\n- （編集）\n:::`),
+    },
+    {
+      title: "詳細・補足",
+      body: () =>
+        slideSub("ルールと例外", `:::table\n| 区分 | 内容 |\n| --- | --- |\n| 仕組み | （編集） |\n| 例外 | （編集） |\n| FAQ | （編集） |\n:::`),
+    },
+    {
+      title: "具体例",
+      body: () =>
+        slideSub("シナリオで理解", `:::compare\n### 左\n- Before（編集）\n### 右\n- After（編集）\n:::\n\n### 補足\n- 画面・図の予定`),
+    },
+    {
+      title: "論点・確認事項",
+      body: () =>
+        slideSub("決めたいこと", `:::cards\n### 決定事項\n- （編集）\n### 確認したいこと\n- （編集）\n### 次に必要な情報\n- （編集）\n:::`),
+    },
   ],
   other: [
-    { title: "概要", body: (c) => `- テーマ\n- 目的: ${truncateOneLine(c.purpose, 60)}\n- 対象者: ${c.audience}` },
-    { title: "本論（1）", body: `- 論点・データ\n- （根拠）\n- （図表）` },
-    { title: "本論（2）", body: `- 論点・データ\n- （比較）\n- （事例）` },
-    { title: "本論（3）", body: `- 論点・データ\n- （リスク）\n- （代替案）` },
-    { title: "結び", body: `- メッセージ\n- 次のステップ\n- （質疑の受け方）` },
+    {
+      title: "概要",
+      body: (c) =>
+        slideSub("このプレゼンの位置づけ", `:::table\n| 項目 | 内容 |\n| --- | --- |\n| テーマ | （編集） |\n| 目的 | ${truncateOneLine(c.purpose, 50)} |\n| 対象者 | ${c.audience} |\n:::`),
+    },
+    {
+      title: "本論（1）",
+      body: () =>
+        slideSub("論点と根拠", `:::cards\n### 論点\n- （編集）\n### データ\n- （編集）\n### 図表\n- （予定）\n:::`),
+    },
+    {
+      title: "本論（2）",
+      body: () =>
+        slideSub("比較・事例", `:::cards\n### パターンA\n- （編集）\n### パターンB\n- （編集）\n### 事例\n- （編集）\n:::`),
+    },
+    {
+      title: "本論（3）",
+      body: () =>
+        slideSub("リスクと代替案", `:::table\n| 論点 | 内容 | 備考 |\n| --- | --- | --- |\n| リスク | （編集） |  |\n| 代替案 | （編集） |  |\n:::`),
+    },
+    {
+      title: "結び",
+      body: () =>
+        slideSub("締めのメッセージ", `:::cards\n### 一言メッセージ\n- （編集）\n### 次のステップ\n- （編集）\n### 質疑\n- （編集）\n:::`),
+    },
   ],
 };
 
@@ -219,7 +353,7 @@ function generateSlidesFromBrief(brief) {
   if (P === 1) {
     slides.push({
       title: coverTitle(purpose),
-      body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n| メモ | （図表・数値を追記） |\n:::`,
+      body: `:::subtitle\n${truncateOneLine(purpose, 72)}\n:::\n\n:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n| メモ | （図表・数値を追記） |\n:::`,
       ...L(),
     });
     return slides;
@@ -227,19 +361,14 @@ function generateSlidesFromBrief(brief) {
 
   slides.push({
     title: coverTitle(purpose),
-    body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n:::`,
+    body: `:::subtitle\n${truncateOneLine(purpose, 72)}\n:::\n\n:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n:::`,
     ...L(),
   });
 
   if (P === 2) {
     slides.push({
       title: "まとめ・Next step",
-      body: [
-        "### 確認事項",
-        `- 本日の目的の振り返り（${truncateOneLine(purpose, 40)}）`,
-        `- 対象者（${audience}）へのお願い`,
-        "- 次のアクション・期限（編集）",
-      ].join("\n"),
+      body: slideSub("確認と次の一歩", `:::compare\n### 左\n- 本日の目的の振り返り（${truncateOneLine(purpose, 38)}）\n### 右\n- 対象者（${audience}）への依頼・次のアクション・期限\n:::`),
       ...L(),
     });
     return slides;
@@ -255,20 +384,11 @@ function generateSlidesFromBrief(brief) {
   const middleSections = materializeSections(pool, ctx, middleCount);
 
   if (P >= 4) {
-    const agendaLines = [
-      `- 対象者: ${audience}`,
-      `- 種別: ${typeLabel}`,
-      "",
-      "- 進行予定:",
-      ...middleSections.map((s, i) => `- ${i + 1}. ${s.title}`),
-      `- ${middleSections.length + 1}. まとめ・Next step`,
-      "",
-      "- （所要時間・配布資料を追記）",
-    ];
+    const agendaBody = `:::cards\n### 対象・種別\n- ${audience} / ${typeLabel}\n### 進行（例）\n${middleSections.map((s, i) => `- ${i + 1}. ${s.title}`).join("\n")}\n- ${middleSections.length + 1}. まとめ・Next step\n### 所要・資料\n- （時間・配布物を追記）\n:::`;
     slides.push({
       title: "本日の流れ（アジェンダ）",
-      body: agendaLines.join("\n"),
-      ...L(),
+      body: slideSub("進行の全体像", agendaBody),
+      layout: "toc",
     });
   }
 
@@ -278,11 +398,7 @@ function generateSlidesFromBrief(brief) {
 
   slides.push({
     title: "まとめ・Next step",
-    body: [
-      `- メッセージ（一言）: ${truncateOneLine(purpose, 45)}`,
-      `- 対象者（${audience}）に取ってほしいアクション`,
-      `- 次の打合せ・期限・宿題（編集してください）`,
-    ].join("\n"),
+    body: slideSub("締めのメッセージ", `:::cards\n### 一言メッセージ\n- ${truncateOneLine(purpose, 48)}\n### お願い（${audience}）\n- 取ってほしいアクション\n### 次の打合せ・期限\n- （編集）\n:::`),
     ...L(),
   });
 
@@ -292,17 +408,17 @@ function generateSlidesFromBrief(brief) {
 const defaultSlides = () => [
   {
     title: "表紙：プレゼンテーションのタイトル",
-    body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| サブタイトル | （編集） |\n| 日付 |  |\n| 作成 |  |\n:::`,
+    body: `:::subtitle\n聞き手に一言で伝えるサブメッセージ\n:::\n\n:::table\n| 項目 | 内容 |\n| --- | --- |\n| サブタイトル | （編集） |\n| 日付 |  |\n| 作成 |  |\n:::`,
     layout: "default",
   },
   {
     title: "本日のアジェンダ",
-    body: `### 進行\n- イントロダクション（5分）\n- 本論（20分）\n- まとめ・質疑（10分）`,
+    body: `:::subtitle\n進行と時間配分のイメージ\n:::\n\n:::cards\n### 1. 導入\n- 5分\n### 2. 本論\n- 20分\n### 3. まとめ\n- 10分\n:::`,
     layout: "toc",
   },
   {
     title: "まとめ",
-    body: `:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### Next step\n- アクション1\n- アクション2\n:::`,
+    body: `:::subtitle\n次に取るアクションのイメージ\n:::\n\n:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### Next step\n- アクション1\n- アクション2\n:::`,
     layout: "default",
   },
 ];
@@ -340,6 +456,7 @@ function saveState(state) {
 
 /**
  * 本文を HTML に変換（プレビュー・書き出し共通）
+ * - 先頭の :::subtitle … ::: は renderSlideInner でタイトル直下に表示し、ここでは渡さない
  * - ### セクション見出し / ## サブ見出し
  * - :::cards … ::: で3カード（中身は ### カードタイトル + 箇条書き）
  * - :::compare … ::: で対比（### 左 / ### 右 または 《左》《右》）
@@ -541,26 +658,42 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * 本文先頭の :::subtitle … ::: を取り除き、タイトル直下に表示するテキストとして返す。
+ */
+function stripSubtitleFromBody(text) {
+  const s = String(text || "");
+  const re = /^:::\s*subtitle\s*\r?\n([\s\S]*?)\r?\n:::\s*/i;
+  const m = s.match(re);
+  if (!m) return { subtitle: "", rest: s };
+  return { subtitle: m[1].trim(), rest: s.slice(m[0].length).trim() };
+}
+
 function renderSlideInner(slide, options = {}) {
   const { editableShell = false } = options;
   const layout = normalizeLayout(slide.layout);
   const layoutClass = `slide-layout slide-layout--${layout}`;
   const title = slide.title.trim();
-  const bodyHtml = parseBodyToHtml(slide.body);
-  if (!title && !bodyHtml) {
+  const { subtitle, rest } = stripSubtitleFromBody(slide.body);
+  const bodyHtml = parseBodyToHtml(rest);
+  if (!title && !subtitle && !bodyHtml) {
     if (editableShell) {
-      return `<div class="slide-inner ${layoutClass}"><h2 class="slide-title"></h2><div class="slide-body"><p class="empty-hint">タイトルと本文を入力すると表示されます</p></div></div>`;
+      return `<div class="slide-inner slide-inner--stacked ${layoutClass}"><header class="slide-header"><h2 class="slide-title"></h2></header><div class="slide-body"><p class="empty-hint">タイトルと本文を入力すると表示されます（本文先頭に <code>:::subtitle</code> でサブメッセージ）</p></div></div>`;
     }
-    return `<div class="slide-inner ${layoutClass}"><p class="empty-hint">タイトルと本文を入力すると表示されます</p></div>`;
+    return `<div class="slide-inner slide-inner--stacked ${layoutClass}"><p class="empty-hint">タイトルと本文を入力すると表示されます</p></div>`;
   }
-  let html = "";
+  let html = `<header class="slide-header">`;
   html += `<h2 class="slide-title">${escapeHtml(title)}</h2>`;
+  if (subtitle) {
+    html += `<p class="slide-subtitle">${escapeHtml(subtitle)}</p>`;
+  }
+  html += `</header>`;
   if (bodyHtml) {
     html += `<div class="slide-body">${bodyHtml}</div>`;
   } else {
     html += `<div class="slide-body"></div>`;
   }
-  return `<div class="slide-inner ${layoutClass}">${html}</div>`;
+  return `<div class="slide-inner slide-inner--stacked ${layoutClass}">${html}</div>`;
 }
 
 function buildStandaloneHtml(slides) {
@@ -589,18 +722,22 @@ function buildStandaloneHtml(slides) {
       --slide-v: 0.7;
       background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px;
       padding: calc(0.35rem * var(--slide-v)); min-height: 200px;
-      aspect-ratio: 16 / 9; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      aspect-ratio: 16 / 9; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch;
       overflow: hidden;
     }
     .slide-inner {
       width: calc(100% / var(--slide-v)); max-width: calc(100% / var(--slide-v)); max-height: calc(100% / var(--slide-v));
       min-height: 0; flex: 0 1 auto;
       display: flex; flex-direction: column; justify-content: flex-start;
+      align-items: flex-start;
       transform: scale(var(--slide-v)); transform-origin: top center;
       overflow: hidden;
     }
-    .slide-title { margin: 0 0 1rem; font-size: 1.35rem; font-weight: 700; line-height: 1.25; }
-    .slide-body { margin: 0; font-size: 0.95rem; line-height: 1.55; }
+    .slide-inner.slide-inner--stacked { width: 100%; padding: 0.75rem 0.9rem 0.65rem; box-sizing: border-box; gap: 0.35rem; }
+    .slide-header { width: 100%; text-align: left; }
+    .slide-title { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 700; line-height: 1.25; text-align: left; }
+    .slide-subtitle { margin: 0 0 0.5rem; font-size: 0.88rem; font-weight: 500; color: #64748b; line-height: 1.45; }
+    .slide-body { margin: 0; font-size: 0.95rem; line-height: 1.55; width: 100%; padding-top: 0.45rem; border-top: 1px solid rgba(15, 23, 42, 0.08); }
     .slide-body ul { margin: 0; padding-left: 1.25rem; }
     .slide-body li { margin-bottom: 0.35rem; }
     .slide-body p { margin: 0 0 0.5rem; }
@@ -628,8 +765,8 @@ function buildStandaloneHtml(slides) {
     .slide-inner.slide-layout--cols3 .slide-table { box-shadow: 0 4px 14px rgba(37,99,235,0.15); }
     .slide-inner.slide-layout--cards .slide-cards { gap: 0.75rem; }
     .slide-inner.slide-layout--cards .slide-card { box-shadow: 0 4px 12px rgba(15,23,42,0.08); border-radius: 12px; }
-    .slide-inner.slide-layout--section { text-align: center; justify-content: center; }
-    .slide-inner.slide-layout--section .slide-title { font-size: clamp(1.4rem, 3vw, 1.85rem); background: linear-gradient(135deg, #0ea5e9, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .slide-inner.slide-layout--section { text-align: left; justify-content: flex-start; }
+    .slide-inner.slide-layout--section .slide-title { font-size: clamp(1.25rem, 2.6vw, 1.65rem); background: linear-gradient(135deg, #0ea5e9, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .slide-inner.slide-layout--toc .slide-body { border-left: 4px solid #6366f1; padding-left: 1rem; }
     .slide-inner.slide-layout--compare .slide-compare { gap: 1rem; }
     .slide-inner.slide-layout--compare .slide-compare-col:first-child { background: #fef2f2; border-color: #fecaca; }

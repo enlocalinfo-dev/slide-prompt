@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=3" />
   </head>
   <body class="app-unified">
     <header class="app-header">
@@ -122,31 +122,35 @@
             name="slide-body"
             class="workspace-body-textarea"
             spellcheck="false"
-            placeholder=":::table&#10;| 列A | 列B |&#10;| --- | --- |&#10;|  |  |&#10;:::&#10;&#10;または 箇条書き:&#10;- 要点1&#10;- 要点2&#10;&#10;左画像:&#10;:::media&#10;https://画像URL&#10;### 右側の見出し&#10;- 説明&#10;:::"
+            placeholder=":::subtitle&#10;タイトル直下のサブメッセージ（1行）&#10;:::&#10;&#10;:::cards&#10;### ブロック1&#10;- 内容&#10;### ブロック2&#10;- 内容&#10;### ブロック3&#10;- 内容&#10;:::"
           ></textarea>
           <p class="field-hint-below workspace-hint">
-            プレーンな文章だけにしないでください。
-            <strong>表</strong>
-            （
-            <code>:::table</code>
-            ）・
-            <strong>箇条書き</strong>
-            （行頭
-            <code>-</code>
-            ）・
-            <strong>左画像</strong>
-            （
-            <code>:::media</code>
-            1行目に画像URL、その下に本文）のいずれかを使ってください。
-            <code>:::cards</code>
-            /
-            <code>:::compare</code>
-            も利用可能です。
+            先頭に
+            <strong>
+              <code>:::subtitle</code>
+            </strong>
+            でサブメッセージ。本文は
+            <strong>
+              <code>:::cards</code>
+            </strong>
+            ／
+            <strong>
+              <code>:::table</code>
+            </strong>
+            ／
+            <strong>
+              <code>:::compare</code>
+            </strong>
+            ／
+            <strong>
+              <code>:::media</code>
+            </strong>
+            など、必ずレイアウト記法で構造化してください。
           </p>
         </div>
       </div>
     </main>
 
-    <script src="client.js?v=2"></script>
+    <script src="client.js?v=3"></script>
   </body>
 </html>
