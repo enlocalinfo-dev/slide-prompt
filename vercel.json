@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "headers": [
     {
-      "source": "/(index\\.html|styles\\.css|app\\.js)",
+      "source": "/(index\\.html|styles\\.css|client\\.js)",
       "headers": [
         {
           "key": "Cache-Control",
