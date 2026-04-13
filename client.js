@@ -249,18 +249,168 @@ function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ slides: state.slides, brief: state.brief }));
 }
 
+/**
+ * 本文を HTML に変換（プレビュー・書き出し共通）
+ * - ### セクション見出し / ## サブ見出し
+ * - :::cards … ::: で3カード（中身は ### カードタイトル + 箇条書き）
+ * - :::compare … ::: で対比（### 左 / ### 右 または 《左》《右》）
+ * - :::table … ::: で表（| 区切り）
+ */
 function parseBodyToHtml(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim());
-  const nonEmpty = lines.filter((l) => l.length > 0);
-  if (nonEmpty.length === 0) return "";
+  const s = String(text || "");
+  if (!s.trim()) return "";
 
-  const allBullets = nonEmpty.every((l) => /^[-・*•\u2022]\s?/.test(l) || /^[0-9]+[.)]\s?/.test(l));
-  if (allBullets && nonEmpty.length > 0) {
-    const items = nonEmpty.map((l) => l.replace(/^[-・*•\u2022]\s?|^[0-9]+[.)]\s?/, "").trim());
-    return `<ul>${items.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`;
+  const segments = [];
+  const fenceRe = /:::(cards|3cards|compare|table)\r?\n([\s\S]*?)\r?\n:::/g;
+  let lastIndex = 0;
+  let m;
+  while ((m = fenceRe.exec(s)) !== null) {
+    const before = s.slice(lastIndex, m.index);
+    if (before.trim()) segments.push({ type: "normal", content: before });
+    segments.push({ type: m[1], content: m[2] });
+    lastIndex = m.index + m[0].length;
   }
+  const end = s.slice(lastIndex);
+  if (end.trim()) segments.push({ type: "normal", content: end });
+  if (segments.length === 0) segments.push({ type: "normal", content: s });
 
-  return nonEmpty.map((l) => `<p>${escapeHtml(l)}</p>`).join("");
+  return segments
+    .map((seg) => {
+      if (seg.type === "cards" || seg.type === "3cards") return parseCardsBlock(seg.content);
+      if (seg.type === "compare") return parseCompareFenced(seg.content);
+      if (seg.type === "table") return parseTableBlock(seg.content);
+      return parseNormalSegment(seg.content);
+    })
+    .join("");
+}
+
+function bulletLinesToHtml(lines) {
+  const items = lines
+    .map((l) => l.trim())
+    .filter((l) => l.length)
+    .map((l) => l.replace(/^[-・*•\u2022]\s?|^[0-9]+[.)]\s?/, "").trim())
+    .filter(Boolean);
+  if (!items.length) return "";
+  return `<ul>${items.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`;
+}
+
+function parseCardsBlock(inner) {
+  const raw = inner.trim();
+  if (!raw) return "";
+  const parts = raw.split(/\n(?=### )/).map((p) => p.trim()).filter(Boolean);
+  const cards = parts.map((p) => {
+    const lines = p.split(/\r?\n/).map((l) => l.trimEnd());
+    const first = lines[0].replace(/^###\s*/, "").trim();
+    const rest = lines.slice(1).map((l) => l.trim()).filter(Boolean);
+    return `<div class="slide-card"><h4 class="slide-card-title">${escapeHtml(first)}</h4>${bulletLinesToHtml(rest)}</div>`;
+  });
+  return `<div class="slide-cards">${cards.join("")}</div>`;
+}
+
+function parseLooseBody(inner) {
+  const t = inner.trim();
+  if (!t) return "";
+  if (/^[-・*•\u2022]\s?/.test(t) || /^[0-9]+[.)]\s?/.test(t)) {
+    return bulletLinesToHtml(t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean));
+  }
+  return parseNormalSegment(t);
+}
+
+function parseCompareFenced(inner) {
+  const t = inner.trim();
+  const idxRight = t.search(/^###\s*右\s*$/m);
+  if (/^###\s*左\s*$/m.test(t) && idxRight > 0) {
+    const head = t.slice(0, idxRight).trim();
+    const tail = t.slice(idxRight).replace(/^###\s*右\s*\n?/m, "").trim();
+    const leftBody = head.replace(/^###\s*左\s*\n?/m, "").trim();
+    return (
+      `<div class="slide-compare">` +
+      `<div class="slide-compare-col"><div class="slide-compare-label">左</div>${parseLooseBody(leftBody)}</div>` +
+      `<div class="slide-compare-col"><div class="slide-compare-label">右</div>${parseLooseBody(tail)}</div>` +
+      `</div>`
+    );
+  }
+  const m2 = t.match(/《左》\s*([^\n]*)\s*\n([\s\S]*?)《右》\s*([^\n]*)\s*\n([\s\S]*)/);
+  if (m2) {
+    return (
+      `<div class="slide-compare">` +
+      `<div class="slide-compare-col"><div class="slide-compare-label">${escapeHtml((m2[1] || "左").trim() || "左")}</div>${parseLooseBody(m2[2])}</div>` +
+      `<div class="slide-compare-col"><div class="slide-compare-label">${escapeHtml((m2[3] || "右").trim() || "右")}</div>${parseLooseBody(m2[4])}</div>` +
+      `</div>`
+    );
+  }
+  return `<div class="slide-compare slide-compare--plain">${parseNormalSegment(t)}</div>`;
+}
+
+function parseTableBlock(inner) {
+  const lines = inner.trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const pipeLines = lines.filter((l) => l.includes("|"));
+  if (pipeLines.length < 1) return `<p>${escapeHtml(inner)}</p>`;
+
+  const parseCells = (line) => {
+    const parts = line.split("|").map((c) => c.trim());
+    return parts.filter((c, i, arr) => !(c === "" && (i === 0 || i === arr.length - 1)));
+  };
+
+  const dataRows = pipeLines.filter((l) => !/^\|[\s\-:\-|]+\|?$/.test(l.replace(/\s/g, "")));
+  if (dataRows.length < 1) return `<p>${escapeHtml(inner)}</p>`;
+
+  const headerCells = parseCells(dataRows[0]);
+  const bodyRows = dataRows.slice(1);
+  const thead = `<thead><tr>${headerCells.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>`;
+  const tbody = `<tbody>${bodyRows
+    .map((row) => {
+      const cells = parseCells(row);
+      return `<tr>${cells.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`;
+    })
+    .join("")}</tbody>`;
+  return `<div class="slide-table-wrap"><table class="slide-table">${thead}${tbody}</table></div>`;
+}
+
+function parseNormalSegment(text) {
+  const lines = text.split(/\r?\n/);
+  const html = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const t = line.trim();
+    if (!t) {
+      i++;
+      continue;
+    }
+    if (t.startsWith("### ")) {
+      html.push(`<h3 class="slide-section">${escapeHtml(t.slice(4).trim())}</h3>`);
+      i++;
+      continue;
+    }
+    if (t.startsWith("## ") && !t.startsWith("###")) {
+      html.push(`<p class="slide-eyebrow">${escapeHtml(t.slice(3).trim())}</p>`);
+      i++;
+      continue;
+    }
+    if (/^[-・*•\u2022]\s?/.test(t) || /^[0-9]+[.)]\s?/.test(t)) {
+      const bulletLines = [];
+      while (i < lines.length) {
+        const lt = lines[i].trim();
+        if (!/^[-・*•\u2022]\s?/.test(lt) && !/^[0-9]+[.)]\s?/.test(lt)) break;
+        bulletLines.push(lt);
+        i++;
+      }
+      html.push(bulletLinesToHtml(bulletLines));
+      continue;
+    }
+    const paraLines = [];
+    while (i < lines.length) {
+      const lt = lines[i].trim();
+      if (!lt) break;
+      if (lt.startsWith("### ") || (lt.startsWith("## ") && !lt.startsWith("###"))) break;
+      if (/^[-・*•\u2022]\s?/.test(lt) || /^[0-9]+[.)]\s?/.test(lt)) break;
+      paraLines.push(lt);
+      i++;
+    }
+    if (paraLines.length) html.push(`<p>${escapeHtml(paraLines.join(" "))}</p>`);
+  }
+  return html.join("");
 }
 
 function escapeHtml(s) {
@@ -318,6 +468,20 @@ function buildStandaloneHtml(slides) {
     .slide-body ul { margin: 0; padding-left: 1.25rem; }
     .slide-body li { margin-bottom: 0.35rem; }
     .slide-body p { margin: 0 0 0.5rem; }
+    .slide-body .slide-section { margin: 0 0 0.5rem; font-size: 0.95rem; font-weight: 700; color: #2563eb; line-height: 1.3; }
+    .slide-body .slide-eyebrow { margin: 0 0 0.35rem; font-size: 0.8rem; font-weight: 600; color: #71717a; letter-spacing: 0.06em; }
+    .slide-body .slide-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.55rem; margin: 0.4rem 0 0.6rem; }
+    .slide-body .slide-card { background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 0.5rem 0.55rem; }
+    .slide-body .slide-card-title { margin: 0 0 0.35rem; font-size: 0.85rem; font-weight: 700; line-height: 1.25; }
+    .slide-body .slide-card ul { font-size: 0.78rem; padding-left: 1rem; }
+    .slide-body .slide-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin: 0.4rem 0 0.6rem; }
+    .slide-body .slide-compare-col { background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 0.5rem 0.55rem; }
+    .slide-body .slide-compare-label { font-size: 0.7rem; font-weight: 700; color: #71717a; margin-bottom: 0.35rem; }
+    .slide-body .slide-table-wrap { margin: 0.4rem 0; overflow-x: auto; max-width: 100%; }
+    .slide-body .slide-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; border: 1px solid #e4e4e7; }
+    .slide-body .slide-table th, .slide-body .slide-table td { border: 1px solid #e4e4e7; padding: 0.35rem 0.45rem; text-align: left; vertical-align: top; }
+    .slide-body .slide-table th { background: #f4f4f5; font-weight: 600; }
+    @media (max-width: 640px) { .slide-body .slide-cards { grid-template-columns: 1fr; } .slide-body .slide-compare { grid-template-columns: 1fr; } }
     .empty-hint { color: #71717a; margin: 0; }
   </style>
 </head>

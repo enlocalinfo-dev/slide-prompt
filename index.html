@@ -102,7 +102,12 @@
               本文
               <span class="hint"> — 空行で段落分け。行頭に <code>-</code> または <code>1.</code> 形式で箇条書きにできます。</span>
             </label>
-            <textarea id="slide-body" name="slide-body" placeholder="- 要点1&#10;- 要点2&#10;&#10;または段落を&#10;空行で区切る"></textarea>
+            <textarea
+              id="slide-body"
+              name="slide-body"
+              placeholder="### 01 セクション&#10;## サブ見出し&#10;- 要点&#10;&#10;:::cards&#10;### カード1&#10;- 文&#10;### カード2&#10;### カード3&#10;:::&#10;&#10;:::compare&#10;### 左&#10;- 要点&#10;### 右&#10;- 要点&#10;:::"
+            ></textarea>
+            <p class="field-hint-below">記法: <code>###</code> セクション / <code>:::cards</code>〜<code>:::</code> 3カード / <code>:::compare</code> 対比 / <code>:::table</code> 表（|区切り）</p>
           </div>
         </div>
       </section>
