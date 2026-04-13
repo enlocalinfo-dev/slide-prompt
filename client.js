@@ -5,6 +5,80 @@
 const STORAGE_KEY_V1 = "genspark-slide-draft-v1";
 const STORAGE_KEY = "genspark-slide-draft-v2";
 
+/** スライドの見た目プリセット（プレビュー・書き出しでクラスとして適用） */
+const LAYOUT_IDS = ["default", "vscode", "cols3", "cards", "section", "toc", "compare", "media"];
+
+const LAYOUT_PRESETS = [
+  { id: "default", label: "標準", hint: "白背景・汎用" },
+  { id: "vscode", label: "VS Code風", hint: "ダーク・エディタ風" },
+  { id: "cols3", label: "3カラム表", hint: "表レイアウト強調" },
+  { id: "cards", label: "3カード", hint: "横並びカード強調" },
+  { id: "section", label: "セクション", hint: "章扉・大見出し" },
+  { id: "toc", label: "目次", hint: "アジェンダ・流れ" },
+  { id: "compare", label: "VS対比", hint: "左右対比" },
+  { id: "media", label: "左画像", hint: "画像＋右テキスト" },
+];
+
+/** 本文が空のときだけ、レイアウト選択で挿入するひな形 */
+const LAYOUT_STARTERS = {
+  vscode: `### 画面構成\n- 左: サイドバー\n- 中央: エディタ\n- 右: パネル`,
+  cols3: `:::table\n| 列A | 列B | 列C |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n:::`,
+  cards: `:::cards\n### カード1\n- 要点\n### カード2\n- 要点\n### カード3\n- 要点\n:::`,
+  section: `### このセクションのメッセージ\n- 次の論点への橋渡し`,
+  toc: `## 本日の流れ\n1. イントロダクション\n2. 本論\n3. まとめ`,
+  compare: `:::compare\n### 現状\n- 課題\n### 提案後\n- 効果\n:::`,
+  media: `:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### ポイント\n- 左に画像・右に説明\n- URLは1行目（または ![alt](URL) ）\n:::`,
+};
+
+function normalizeLayout(id) {
+  const s = String(id || "").trim();
+  return LAYOUT_IDS.includes(s) ? s : "default";
+}
+
+function normalizeSlide(raw) {
+  return {
+    title: String(raw?.title ?? ""),
+    body: String(raw?.body ?? ""),
+    layout: normalizeLayout(raw?.layout),
+  };
+}
+
+function applyLayoutPreset(slide, layoutId) {
+  const id = normalizeLayout(layoutId);
+  slide.layout = id;
+  const starter = LAYOUT_STARTERS[id];
+  if (starter && !String(slide.body || "").trim()) {
+    slide.body = starter;
+  }
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function fillLayoutPresetBar(container) {
+  if (!container || container.dataset.filled === "1") return;
+  container.innerHTML = `
+    <span class="layout-preset-label">デザイン</span>
+    <div class="layout-preset-tabs" role="tablist">
+      ${LAYOUT_PRESETS.map(
+        (p) =>
+          `<button type="button" class="layout-preset-btn" data-layout="${escAttr(p.id)}" title="${escAttr(p.hint)}" role="tab">${escAttr(p.label)}</button>`
+      ).join("")}
+    </div>`;
+  container.dataset.filled = "1";
+}
+
+function updateLayoutPresetBarUI(container, layoutId) {
+  if (!container) return;
+  const lid = normalizeLayout(layoutId);
+  container.querySelectorAll(".layout-preset-btn[data-layout]").forEach((btn) => {
+    const on = btn.dataset.layout === lid;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+
 const TYPE_LABELS = {
   proposal: "提案",
   report: "報告・共有",
@@ -140,32 +214,33 @@ function generateSlidesFromBrief(brief) {
 
   const slides = [];
 
+  const L = () => ({ layout: "default" });
+
   if (P === 1) {
     slides.push({
       title: coverTitle(purpose),
-      body: [
-        `- 主目的: ${purpose}`,
-        `- 対象者: ${audience}`,
-        `- 種別: ${typeLabel}`,
-        `- （この1枚に全体をまとめる場合のメモ・図表の予定）`,
-      ].join("\n"),
+      body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n| メモ | （図表・数値を追記） |\n:::`,
+      ...L(),
     });
     return slides;
   }
 
   slides.push({
     title: coverTitle(purpose),
-    body: [`- 主目的: ${purpose}`, `- 対象者: ${audience}`, `- 種別: ${typeLabel}`].join("\n"),
+    body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| 主目的 | ${purpose} |\n| 対象者 | ${audience} |\n| 種別 | ${typeLabel} |\n:::`,
+    ...L(),
   });
 
   if (P === 2) {
     slides.push({
       title: "まとめ・Next step",
       body: [
+        "### 確認事項",
         `- 本日の目的の振り返り（${truncateOneLine(purpose, 40)}）`,
-        `- 対象者（${audience}）へのお願い・確認事項`,
-        `- 次のアクション・期限（編集してください）`,
+        `- 対象者（${audience}）へのお願い`,
+        "- 次のアクション・期限（編集）",
       ].join("\n"),
+      ...L(),
     });
     return slides;
   }
@@ -193,11 +268,12 @@ function generateSlidesFromBrief(brief) {
     slides.push({
       title: "本日の流れ（アジェンダ）",
       body: agendaLines.join("\n"),
+      ...L(),
     });
   }
 
   for (const s of middleSections) {
-    slides.push({ title: s.title, body: s.body });
+    slides.push({ title: s.title, body: s.body, ...L() });
   }
 
   slides.push({
@@ -207,15 +283,28 @@ function generateSlidesFromBrief(brief) {
       `- 対象者（${audience}）に取ってほしいアクション`,
       `- 次の打合せ・期限・宿題（編集してください）`,
     ].join("\n"),
+    ...L(),
   });
 
   return slides;
 }
 
 const defaultSlides = () => [
-  { title: "表紙：プレゼンテーションのタイトル", body: "サブタイトルや日付など（1行1項目）" },
-  { title: "本日のアジェンダ", body: "項目1\n項目2\n項目3" },
-  { title: "まとめ", body: "メッセージ\nNext step" },
+  {
+    title: "表紙：プレゼンテーションのタイトル",
+    body: `:::table\n| 項目 | 内容 |\n| --- | --- |\n| サブタイトル | （編集） |\n| 日付 |  |\n| 作成 |  |\n:::`,
+    layout: "default",
+  },
+  {
+    title: "本日のアジェンダ",
+    body: `### 進行\n- イントロダクション（5分）\n- 本論（20分）\n- まとめ・質疑（10分）`,
+    layout: "toc",
+  },
+  {
+    title: "まとめ",
+    body: `:::media\nhttps://images.unsplash.com/photo-1552664730-d307ca884978?w=480&q=80\n### Next step\n- アクション1\n- アクション2\n:::`,
+    layout: "default",
+  },
 ];
 
 function loadState() {
@@ -226,7 +315,7 @@ function loadState() {
       if (oldRaw) {
         const data = JSON.parse(oldRaw);
         const slides = Array.isArray(data.slides)
-          ? data.slides.map((s) => ({ title: String(s.title ?? ""), body: String(s.body ?? "") }))
+          ? data.slides.map((s) => normalizeSlide(s))
           : defaultSlides();
         const state = { slides: slides.length ? slides : defaultSlides(), brief: defaultBrief() };
         saveState(state);
@@ -236,12 +325,12 @@ function loadState() {
     if (!raw) return { slides: defaultSlides(), brief: defaultBrief() };
     const data = JSON.parse(raw);
     const slides = Array.isArray(data.slides) && data.slides.length
-      ? data.slides.map((s) => ({ title: String(s.title ?? ""), body: String(s.body ?? "") }))
+      ? data.slides.map((s) => normalizeSlide(s))
       : defaultSlides();
     const brief = normalizeBrief(data.brief || {});
     return { slides, brief };
   } catch {
-    return { slides: defaultSlides(), brief: defaultBrief() };
+    return { slides: defaultSlides().map((s) => normalizeSlide(s)), brief: defaultBrief() };
   }
 }
 
@@ -255,13 +344,14 @@ function saveState(state) {
  * - :::cards … ::: で3カード（中身は ### カードタイトル + 箇条書き）
  * - :::compare … ::: で対比（### 左 / ### 右 または 《左》《右》）
  * - :::table … ::: で表（| 区切り）
+ * - :::media … ::: で左画像＋右本文（1行目: 画像URL または ![alt](url)）
  */
 function parseBodyToHtml(text) {
   const s = String(text || "");
   if (!s.trim()) return "";
 
   const segments = [];
-  const fenceRe = /:::(cards|3cards|compare|table)\r?\n([\s\S]*?)\r?\n:::/g;
+  const fenceRe = /:::(cards|3cards|compare|table|media)\r?\n([\s\S]*?)\r?\n:::/g;
   let lastIndex = 0;
   let m;
   while ((m = fenceRe.exec(s)) !== null) {
@@ -279,6 +369,7 @@ function parseBodyToHtml(text) {
       if (seg.type === "cards" || seg.type === "3cards") return parseCardsBlock(seg.content);
       if (seg.type === "compare") return parseCompareFenced(seg.content);
       if (seg.type === "table") return parseTableBlock(seg.content);
+      if (seg.type === "media") return parseMediaBlock(seg.content);
       return parseNormalSegment(seg.content);
     })
     .join("");
@@ -367,6 +458,31 @@ function parseTableBlock(inner) {
   return `<div class="slide-table-wrap"><table class="slide-table">${thead}${tbody}</table></div>`;
 }
 
+function parseMediaBlock(inner) {
+  const lines = inner.split(/\r?\n/);
+  const first = (lines[0] || "").trim();
+  let imgSrc = "";
+  let restLines = lines.slice(1);
+  const mdImg = first.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
+  if (mdImg) {
+    imgSrc = mdImg[2].trim();
+  } else if (/^https?:\/\//i.test(first)) {
+    imgSrc = first;
+  } else {
+    restLines = lines;
+  }
+  const rest = restLines.join("\n").trim();
+  const rightHtml = rest ? parseNormalSegment(rest) : "";
+  const imgEl = imgSrc
+    ? `<img class="slide-media__img-el" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" decoding="async" />`
+    : "";
+  const imgCol = imgSrc
+    ? `<div class="slide-media__img">${imgEl}</div>`
+    : `<div class="slide-media__img slide-media__img--placeholder"><span>画像URL または ![説明](URL)</span></div>`;
+  const bodyCol = `<div class="slide-media__body">${rightHtml || '<p class="slide-media__empty">右側に見出し・箇条書き</p>'}</div>`;
+  return `<div class="slide-media">${imgCol}${bodyCol}</div>`;
+}
+
 function parseNormalSegment(text) {
   const lines = text.split(/\r?\n/);
   const html = [];
@@ -408,7 +524,11 @@ function parseNormalSegment(text) {
       paraLines.push(lt);
       i++;
     }
-    if (paraLines.length) html.push(`<p>${escapeHtml(paraLines.join(" "))}</p>`);
+    if (paraLines.length) {
+      html.push(
+        `<ul class="slide-auto-bullets">${paraLines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`
+      );
+    }
   }
   return html.join("");
 }
@@ -421,27 +541,33 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-function renderSlideInner(slide) {
+function renderSlideInner(slide, options = {}) {
+  const { editableShell = false } = options;
+  const layout = normalizeLayout(slide.layout);
+  const layoutClass = `slide-layout slide-layout--${layout}`;
   const title = slide.title.trim();
   const bodyHtml = parseBodyToHtml(slide.body);
   if (!title && !bodyHtml) {
-    return '<p class="empty-hint">タイトルと本文を入力すると表示されます</p>';
+    if (editableShell) {
+      return `<div class="slide-inner ${layoutClass}"><h2 class="slide-title"></h2><div class="slide-body"><p class="empty-hint">タイトルと本文を入力すると表示されます</p></div></div>`;
+    }
+    return `<div class="slide-inner ${layoutClass}"><p class="empty-hint">タイトルと本文を入力すると表示されます</p></div>`;
   }
   let html = "";
-  if (title) {
-    html += `<h2 class="slide-title">${escapeHtml(title)}</h2>`;
-  }
+  html += `<h2 class="slide-title">${escapeHtml(title)}</h2>`;
   if (bodyHtml) {
     html += `<div class="slide-body">${bodyHtml}</div>`;
+  } else {
+    html += `<div class="slide-body"></div>`;
   }
-  return html;
+  return `<div class="slide-inner ${layoutClass}">${html}</div>`;
 }
 
 function buildStandaloneHtml(slides) {
   const slidesHtml = slides
     .map(
       (s, i) => `
-    <section class="deck-slide" data-index="${i}">
+    <section class="deck-slide" data-index="${i}" data-layout="${normalizeLayout(s.layout)}">
       ${renderSlideInner(s)}
     </section>`
     )
@@ -455,13 +581,23 @@ function buildStandaloneHtml(slides) {
   <title>スライド案（書き出し）</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; background: #f4f4f5; color: #18181b; padding: 1.5rem; }
-    h1 { font-size: 1rem; margin: 0 0 1rem; color: #71717a; }
+    body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; background: #f1f5f9; color: #0f172a; padding: 1.5rem; }
+    h1 { font-size: 0.95rem; margin: 0 0 1rem; color: #64748b; font-weight: 500; }
     .deck { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+    :root { --slide-v: 0.7; }
     .deck-slide {
-      background: #fafafa; border: 1px solid #e4e4e7; border-radius: 10px;
-      padding: 1.75rem 2rem; min-height: 200px;
-      aspect-ratio: 16 / 9; display: flex; flex-direction: column; justify-content: center;
+      --slide-v: 0.7;
+      background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: calc(0.35rem * var(--slide-v)); min-height: 200px;
+      aspect-ratio: 16 / 9; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      overflow: hidden;
+    }
+    .slide-inner {
+      width: calc(100% / var(--slide-v)); max-width: calc(100% / var(--slide-v)); max-height: calc(100% / var(--slide-v));
+      min-height: 0; flex: 0 1 auto;
+      display: flex; flex-direction: column; justify-content: flex-start;
+      transform: scale(var(--slide-v)); transform-origin: top center;
+      overflow: hidden;
     }
     .slide-title { margin: 0 0 1rem; font-size: 1.35rem; font-weight: 700; line-height: 1.25; }
     .slide-body { margin: 0; font-size: 0.95rem; line-height: 1.55; }
@@ -469,20 +605,41 @@ function buildStandaloneHtml(slides) {
     .slide-body li { margin-bottom: 0.35rem; }
     .slide-body p { margin: 0 0 0.5rem; }
     .slide-body .slide-section { margin: 0 0 0.5rem; font-size: 0.95rem; font-weight: 700; color: #2563eb; line-height: 1.3; }
-    .slide-body .slide-eyebrow { margin: 0 0 0.35rem; font-size: 0.8rem; font-weight: 600; color: #71717a; letter-spacing: 0.06em; }
+    .slide-body .slide-eyebrow { margin: 0 0 0.35rem; font-size: 0.8rem; font-weight: 600; color: #64748b; letter-spacing: 0.06em; }
     .slide-body .slide-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.55rem; margin: 0.4rem 0 0.6rem; }
-    .slide-body .slide-card { background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 0.5rem 0.55rem; }
+    .slide-body .slide-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem 0.55rem; }
     .slide-body .slide-card-title { margin: 0 0 0.35rem; font-size: 0.85rem; font-weight: 700; line-height: 1.25; }
     .slide-body .slide-card ul { font-size: 0.78rem; padding-left: 1rem; }
     .slide-body .slide-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin: 0.4rem 0 0.6rem; }
-    .slide-body .slide-compare-col { background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 0.5rem 0.55rem; }
-    .slide-body .slide-compare-label { font-size: 0.7rem; font-weight: 700; color: #71717a; margin-bottom: 0.35rem; }
+    .slide-body .slide-compare-col { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem 0.55rem; }
+    .slide-body .slide-compare-label { font-size: 0.7rem; font-weight: 700; color: #64748b; margin-bottom: 0.35rem; }
     .slide-body .slide-table-wrap { margin: 0.4rem 0; overflow-x: auto; max-width: 100%; }
-    .slide-body .slide-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; border: 1px solid #e4e4e7; }
-    .slide-body .slide-table th, .slide-body .slide-table td { border: 1px solid #e4e4e7; padding: 0.35rem 0.45rem; text-align: left; vertical-align: top; }
-    .slide-body .slide-table th { background: #f4f4f5; font-weight: 600; }
+    .slide-body .slide-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; border: 1px solid #e2e8f0; }
+    .slide-body .slide-table th, .slide-body .slide-table td { border: 1px solid #e2e8f0; padding: 0.35rem 0.45rem; text-align: left; vertical-align: top; }
+    .slide-body .slide-table th { background: #f1f5f9; font-weight: 600; }
     @media (max-width: 640px) { .slide-body .slide-cards { grid-template-columns: 1fr; } .slide-body .slide-compare { grid-template-columns: 1fr; } }
-    .empty-hint { color: #71717a; margin: 0; }
+    .empty-hint { color: #64748b; margin: 0; }
+    .slide-inner.slide-layout--vscode { background: #1e1e1e; color: #d4d4d4; margin: -1.75rem -2rem; padding: 1.75rem 2rem; border-radius: 12px; }
+    .deck-slide .slide-body { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+    .slide-inner.slide-layout--vscode .slide-title { color: #fff; font-family: ui-monospace, monospace; border-bottom: 2px solid #3fb950; padding-bottom: 0.5rem; }
+    .slide-inner.slide-layout--vscode .slide-body { font-family: ui-monospace, monospace; font-size: 0.88rem; }
+    .slide-inner.slide-layout--vscode .slide-section { color: #569cd6; }
+    .slide-inner.slide-layout--cols3 .slide-table th { background: linear-gradient(180deg, #1d4ed8, #2563eb); color: #fff; border-color: #1e40af; }
+    .slide-inner.slide-layout--cols3 .slide-table { box-shadow: 0 4px 14px rgba(37,99,235,0.15); }
+    .slide-inner.slide-layout--cards .slide-cards { gap: 0.75rem; }
+    .slide-inner.slide-layout--cards .slide-card { box-shadow: 0 4px 12px rgba(15,23,42,0.08); border-radius: 12px; }
+    .slide-inner.slide-layout--section { text-align: center; justify-content: center; }
+    .slide-inner.slide-layout--section .slide-title { font-size: clamp(1.4rem, 3vw, 1.85rem); background: linear-gradient(135deg, #0ea5e9, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .slide-inner.slide-layout--toc .slide-body { border-left: 4px solid #6366f1; padding-left: 1rem; }
+    .slide-inner.slide-layout--compare .slide-compare { gap: 1rem; }
+    .slide-inner.slide-layout--compare .slide-compare-col:first-child { background: #fef2f2; border-color: #fecaca; }
+    .slide-inner.slide-layout--compare .slide-compare-col:last-child { background: #eff6ff; border-color: #bfdbfe; }
+    .slide-body .slide-media { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: 0.75rem; align-items: start; margin: 0.35rem 0 0.5rem; }
+    .slide-body .slide-media__img { border-radius: 10px; overflow: hidden; background: #f1f5f9; border: 1px solid #e2e8f0; min-height: 96px; }
+    .slide-body .slide-media__img-el { width: 100%; height: auto; display: block; }
+    .slide-body .slide-media__img--placeholder { display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 0.5rem; font-size: 0.72rem; color: #64748b; text-align: center; }
+    .slide-body .slide-media__body { min-width: 0; }
+    @media (max-width: 640px) { .slide-body .slide-media { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -495,6 +652,9 @@ ${slidesHtml}
 }
 
 function readBriefFromForm(els) {
+  if (!els || !els.briefPurpose || !els.briefPages || !els.briefAudience || !els.briefType) {
+    return defaultBrief();
+  }
   const n = parseInt(String(els.briefPages.value), 10);
   return normalizeBrief({
     purpose: els.briefPurpose.value,
@@ -505,6 +665,7 @@ function readBriefFromForm(els) {
 }
 
 function writeBriefToForm(brief, els) {
+  if (!els || !els.briefPurpose || !els.briefPages || !els.briefAudience || !els.briefType) return;
   const b = normalizeBrief(brief);
   els.briefPurpose.value = b.purpose;
   els.briefAudience.value = b.audience;
@@ -518,11 +679,14 @@ function init() {
 
   const els = {
     slideList: document.getElementById("slide-list"),
+    layoutPresetBar: document.getElementById("layout-preset-bar"),
     titleInput: document.getElementById("slide-title"),
     bodyInput: document.getElementById("slide-body"),
     preview: document.getElementById("slide-preview"),
     thumbStrip: document.getElementById("thumb-strip"),
-    btnOpenPreview: document.getElementById("btn-open-preview"),
+    btnPrev: document.getElementById("btn-prev-slide"),
+    btnNext: document.getElementById("btn-next-slide"),
+    counter: document.getElementById("slide-counter"),
     btnAdd: document.getElementById("btn-add-slide"),
     btnDel: document.getElementById("btn-delete-slide"),
     btnExport: document.getElementById("btn-export-html"),
@@ -536,10 +700,39 @@ function init() {
     briefPages: document.getElementById("brief-pages"),
   };
 
+  const hasBriefForm = Boolean(
+    els.briefPurpose && els.briefAudience && els.briefType && els.briefPages
+  );
+  const unifiedPreview = Boolean(els.preview && els.bodyInput && !els.titleInput);
+  let bodyDebounceTimer = null;
+
+  fillLayoutPresetBar(els.layoutPresetBar);
+  if (els.layoutPresetBar) {
+    els.layoutPresetBar.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-layout]");
+      if (!btn || !els.layoutPresetBar.contains(btn)) return;
+      syncSlideFromDom();
+      applyLayoutPreset(state.slides[activeIndex], btn.dataset.layout);
+      if (els.bodyInput) els.bodyInput.value = state.slides[activeIndex].body;
+      persist();
+      render();
+    });
+  }
+
+  function syncSlideFromDom() {
+    const slide = state.slides[activeIndex];
+    if (!slide) return;
+    if (els.bodyInput) slide.body = els.bodyInput.value;
+    const h2 = els.preview && els.preview.querySelector(".slide-title");
+    if (h2) slide.title = h2.textContent.trim();
+    else if (els.titleInput) slide.title = els.titleInput.value;
+  }
+
   function applyExternalState() {
     const next = loadState();
+    const rawSlides = Array.isArray(next.slides) && next.slides.length ? next.slides : [{ title: "", body: "", layout: "default" }];
     state = {
-      slides: Array.isArray(next.slides) && next.slides.length ? next.slides : [{ title: "", body: "" }],
+      slides: rawSlides.map((s) => normalizeSlide(s)),
       brief: normalizeBrief(next.brief || {}),
     };
     activeIndex = Math.max(0, Math.min(activeIndex, state.slides.length - 1));
@@ -551,63 +744,21 @@ function init() {
   }
 
   function persistBriefFromForm() {
+    if (!hasBriefForm) return;
     state.brief = readBriefFromForm(els);
     persist();
   }
 
   function setActive(index) {
+    syncSlideFromDom();
+    persist();
     activeIndex = Math.max(0, Math.min(index, state.slides.length - 1));
     if (state.slides.length === 0) {
-      state.slides.push({ title: "", body: "" });
+      state.slides.push({ title: "", body: "", layout: "default" });
       activeIndex = 0;
       persist();
     }
     render();
-  }
-
-  function render() {
-    const slide = state.slides[activeIndex];
-
-    els.slideList.innerHTML = state.slides
-      .map(
-        (_, i) => `
-      <li>
-        <button type="button" class="slide-item ${i === activeIndex ? "is-active" : ""}" data-index="${i}">
-          <span class="num">${i + 1}.</span>${escapeHtml(state.slides[i].title.trim() || "（無題）")}
-        </button>
-      </li>`
-      )
-      .join("");
-
-    els.slideList.querySelectorAll(".slide-item").forEach((btn) => {
-      btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
-    });
-
-    els.titleInput.value = slide.title;
-    els.bodyInput.value = slide.body;
-    if (els.preview) {
-      els.preview.innerHTML = renderSlideInner(slide);
-    }
-
-    if (els.thumbStrip) {
-      els.thumbStrip.innerHTML = state.slides
-        .map(
-          (s, i) => `
-      <button type="button" class="thumb ${i === activeIndex ? "is-active" : ""}" data-index="${i}" title="スライド ${i + 1}">
-        <div class="thumb-inner">
-          <p class="thumb-title">${escapeHtml(s.title.trim() || "（無題）")}</p>
-          ${thumbBodyPreview(s.body)}
-        </div>
-      </button>`
-        )
-        .join("");
-
-      els.thumbStrip.querySelectorAll(".thumb").forEach((btn) => {
-        btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
-      });
-    }
-
-    writeBriefToForm(state.brief, els);
   }
 
   function thumbBodyPreview(body) {
@@ -618,28 +769,18 @@ function init() {
     return `<ul>${items.map((t) => `<li>${escapeHtml(t.length > 28 ? t.slice(0, 28) + "…" : t)}</li>`).join("")}</ul>`;
   }
 
-  function onFieldInput() {
-    state.slides[activeIndex] = {
-      title: els.titleInput.value,
-      body: els.bodyInput.value,
-    };
-    persist();
-    if (els.preview) {
-      els.preview.innerHTML = renderSlideInner(state.slides[activeIndex]);
-    }
-    syncListAndThumbsFromState();
-  }
-
   function syncListAndThumbsFromState() {
     const slide = state.slides[activeIndex];
     const titleText = slide.title.trim() || "（無題）";
 
-    els.slideList.querySelectorAll(".slide-item").forEach((btn, i) => {
-      btn.classList.toggle("is-active", i === activeIndex);
-      if (i === activeIndex) {
-        btn.innerHTML = `<span class="num">${activeIndex + 1}.</span>${escapeHtml(titleText)}`;
-      }
-    });
+    if (els.slideList) {
+      els.slideList.querySelectorAll(".slide-item").forEach((btn, i) => {
+        btn.classList.toggle("is-active", i === activeIndex);
+        if (i === activeIndex) {
+          btn.innerHTML = `<span class="num">${activeIndex + 1}.</span>${escapeHtml(titleText)}`;
+        }
+      });
+    }
 
     if (!els.thumbStrip) return;
     els.thumbStrip.querySelectorAll(".thumb").forEach((btn, i) => {
@@ -653,10 +794,128 @@ function init() {
     });
   }
 
-  if (els.btnOpenPreview) {
-    els.btnOpenPreview.addEventListener("click", () => {
-      persist();
-      window.open("preview.html", "_blank", "noopener,noreferrer");
+  function onFieldInput() {
+    state.slides[activeIndex] = {
+      title: els.titleInput ? els.titleInput.value : state.slides[activeIndex].title,
+      body: els.bodyInput ? els.bodyInput.value : "",
+      layout: normalizeLayout(state.slides[activeIndex].layout),
+    };
+    persist();
+    if (els.preview) {
+      els.preview.innerHTML = renderSlideInner(state.slides[activeIndex]);
+    }
+    syncListAndThumbsFromState();
+  }
+
+  function render() {
+    const slide = state.slides[activeIndex];
+
+    if (els.slideList) {
+      els.slideList.innerHTML = state.slides
+        .map(
+          (_, i) => `
+      <li>
+        <button type="button" class="slide-item ${i === activeIndex ? "is-active" : ""}" data-index="${i}">
+          <span class="num">${i + 1}.</span>${escapeHtml(state.slides[i].title.trim() || "（無題）")}
+        </button>
+      </li>`
+        )
+        .join("");
+
+      els.slideList.querySelectorAll(".slide-item").forEach((btn) => {
+        btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
+      });
+    }
+
+    updateLayoutPresetBarUI(els.layoutPresetBar, slide.layout);
+
+    if (unifiedPreview) {
+      if (els.preview) {
+        els.preview.innerHTML = renderSlideInner(slide, { editableShell: true });
+        const h2 = els.preview.querySelector(".slide-title");
+        if (h2) {
+          h2.contentEditable = "true";
+          h2.setAttribute("spellcheck", "false");
+        }
+      }
+      if (els.bodyInput) els.bodyInput.value = slide.body;
+      if (els.counter) els.counter.textContent = `${activeIndex + 1} / ${state.slides.length}`;
+      if (els.btnPrev) els.btnPrev.disabled = activeIndex <= 0;
+      if (els.btnNext) els.btnNext.disabled = activeIndex >= state.slides.length - 1;
+      if (els.btnDel) els.btnDel.disabled = state.slides.length <= 1;
+    } else {
+      if (els.titleInput) els.titleInput.value = slide.title;
+      if (els.bodyInput) els.bodyInput.value = slide.body;
+      if (els.preview) {
+        els.preview.innerHTML = renderSlideInner(slide);
+      }
+
+      if (els.thumbStrip) {
+        els.thumbStrip.innerHTML = state.slides
+          .map(
+            (s, i) => `
+      <button type="button" class="thumb ${i === activeIndex ? "is-active" : ""}" data-index="${i}" title="スライド ${i + 1}">
+        <div class="thumb-inner">
+          <p class="thumb-title">${escapeHtml(s.title.trim() || "（無題）")}</p>
+          ${thumbBodyPreview(s.body)}
+        </div>
+      </button>`
+          )
+          .join("");
+
+        els.thumbStrip.querySelectorAll(".thumb").forEach((btn) => {
+          btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
+        });
+      }
+    }
+
+    writeBriefToForm(state.brief, els);
+  }
+
+  if (unifiedPreview && els.preview) {
+    els.preview.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t && t.classList && t.classList.contains("slide-title")) {
+        state.slides[activeIndex].title = t.textContent.trim();
+        persist();
+        const item = els.slideList && els.slideList.querySelector(`.slide-item[data-index="${activeIndex}"]`);
+        if (item) {
+          item.innerHTML = `<span class="num">${activeIndex + 1}.</span>${escapeHtml(state.slides[activeIndex].title.trim() || "（無題）")}`;
+        }
+      }
+    });
+  }
+
+  if (els.bodyInput) {
+    if (unifiedPreview) {
+      els.bodyInput.addEventListener("input", () => {
+        state.slides[activeIndex].body = els.bodyInput.value;
+        state.slides[activeIndex].layout = normalizeLayout(state.slides[activeIndex].layout);
+        persist();
+        clearTimeout(bodyDebounceTimer);
+        bodyDebounceTimer = setTimeout(() => {
+          const bodyDiv = els.preview && els.preview.querySelector(".slide-body");
+          if (bodyDiv) {
+            bodyDiv.innerHTML = parseBodyToHtml(state.slides[activeIndex].body);
+          }
+        }, 120);
+      });
+    } else {
+      if (els.titleInput) els.titleInput.addEventListener("input", onFieldInput);
+      els.bodyInput.addEventListener("input", onFieldInput);
+    }
+  }
+
+  if (els.btnPrev) {
+    els.btnPrev.addEventListener("click", () => {
+      if (activeIndex <= 0) return;
+      setActive(activeIndex - 1);
+    });
+  }
+  if (els.btnNext) {
+    els.btnNext.addEventListener("click", () => {
+      if (activeIndex >= state.slides.length - 1) return;
+      setActive(activeIndex + 1);
     });
   }
 
@@ -665,24 +924,25 @@ function init() {
     applyExternalState();
   });
 
-  els.titleInput.addEventListener("input", onFieldInput);
-  els.bodyInput.addEventListener("input", onFieldInput);
+  if (hasBriefForm) {
+    ["input", "change"].forEach((ev) => {
+      els.briefPurpose.addEventListener(ev, persistBriefFromForm);
+      els.briefAudience.addEventListener(ev, persistBriefFromForm);
+      els.briefType.addEventListener(ev, persistBriefFromForm);
+      els.briefPages.addEventListener(ev, persistBriefFromForm);
+    });
+  }
 
-  ["input", "change"].forEach((ev) => {
-    els.briefPurpose.addEventListener(ev, persistBriefFromForm);
-    els.briefAudience.addEventListener(ev, persistBriefFromForm);
-    els.briefType.addEventListener(ev, persistBriefFromForm);
-    els.briefPages.addEventListener(ev, persistBriefFromForm);
-  });
-
-  els.btnGenerate.addEventListener("click", () => {
-    state.brief = readBriefFromForm(els);
-    const next = generateSlidesFromBrief(state.brief);
-    state.slides = next;
-    activeIndex = 0;
-    persist();
-    render();
-  });
+  if (els.btnGenerate) {
+    els.btnGenerate.addEventListener("click", () => {
+      state.brief = readBriefFromForm(els);
+      const next = generateSlidesFromBrief(state.brief);
+      state.slides = next;
+      activeIndex = 0;
+      persist();
+      render();
+    });
+  }
 
   if (els.btnGenerateOpenai) {
     els.btnGenerateOpenai.addEventListener("click", async () => {
@@ -708,10 +968,7 @@ function init() {
         if (!Array.isArray(data.slides) || data.slides.length === 0) {
           throw new Error("スライドデータが空です");
         }
-        state.slides = data.slides.map((s) => ({
-          title: String(s.title ?? ""),
-          body: String(s.body ?? ""),
-        }));
+        state.slides = data.slides.map((s) => normalizeSlide(s));
         activeIndex = 0;
         persist();
         render();
@@ -740,41 +997,53 @@ function init() {
     });
   }
 
-  els.btnAdd.addEventListener("click", () => {
-    state.slides.splice(activeIndex + 1, 0, { title: "", body: "" });
-    activeIndex += 1;
-    persist();
-    render();
-  });
+  if (els.btnAdd) {
+    els.btnAdd.addEventListener("click", () => {
+      syncSlideFromDom();
+      state.slides.splice(activeIndex + 1, 0, { title: "", body: "", layout: "default" });
+      activeIndex += 1;
+      persist();
+      render();
+    });
+  }
 
-  els.btnDel.addEventListener("click", () => {
-    if (state.slides.length <= 1) {
-      state.slides[0] = { title: "", body: "" };
-    } else {
-      state.slides.splice(activeIndex, 1);
-      activeIndex = Math.min(activeIndex, state.slides.length - 1);
-    }
-    persist();
-    render();
-  });
+  if (els.btnDel) {
+    els.btnDel.addEventListener("click", () => {
+      syncSlideFromDom();
+      if (state.slides.length <= 1) {
+        state.slides[0] = { title: "", body: "", layout: "default" };
+      } else {
+        state.slides.splice(activeIndex, 1);
+        activeIndex = Math.min(activeIndex, state.slides.length - 1);
+      }
+      persist();
+      render();
+    });
+  }
 
-  els.btnExport.addEventListener("click", () => {
-    const html = buildStandaloneHtml(state.slides);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `slide-draft-${new Date().toISOString().slice(0, 10)}.html`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
+  if (els.btnExport) {
+    els.btnExport.addEventListener("click", () => {
+      syncSlideFromDom();
+      persist();
+      const html = buildStandaloneHtml(state.slides);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `slide-draft-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  }
 
-  els.btnReset.addEventListener("click", () => {
-    if (!confirm("サンプル構成に戻します。スライド内容とブリーフ入力は失われます。よろしいですか？")) return;
-    state = { slides: defaultSlides(), brief: defaultBrief() };
-    activeIndex = 0;
-    persist();
-    render();
-  });
+  if (els.btnReset) {
+    els.btnReset.addEventListener("click", () => {
+      if (!confirm("サンプル構成に戻します。スライド内容とブリーフ入力は失われます。よろしいですか？")) return;
+      state = { slides: defaultSlides(), brief: defaultBrief() };
+      activeIndex = 0;
+      persist();
+      render();
+    });
+  }
 
   render();
 }

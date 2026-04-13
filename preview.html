@@ -3,129 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>スライド内容案 — プレビュー作業</title>
+    <meta name="theme-color" content="#0070b8" />
+    <title>スライド — プレビュー</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="page-preview-workspace">
-    <header class="app-header">
-      <div>
-        <h1>プレビュー作業（別タブ）</h1>
-        <p>
-          16:9 の枠で内容を確認・編集します。メイン画面と同じデータ（ブラウザ保存）を共有します。別タブでメインを開いている場合、どちらかで保存すると他方も更新されます。
-        </p>
+  <body class="page-preview-workspace page-preview-solo">
+    <header class="preview-toolbar" aria-label="操作">
+      <div class="preview-toolbar-left">
+        <a class="btn btn-ghost" href="index.html">← メイン</a>
+        <div class="preview-nav" role="group" aria-label="スライド移動">
+          <button type="button" class="btn btn-ghost btn-icon" id="btn-prev-slide" aria-label="前のスライド">←</button>
+          <span class="preview-counter" id="slide-counter" aria-live="polite">1 / 1</span>
+          <button type="button" class="btn btn-ghost btn-icon" id="btn-next-slide" aria-label="次のスライド">→</button>
+        </div>
       </div>
-      <div class="header-actions">
-        <a class="btn btn-ghost" href="index.html">← メイン画面へ</a>
+      <div class="preview-toolbar-right">
         <button type="button" class="btn btn-primary" id="btn-export-html">HTML を書き出し</button>
         <button type="button" class="btn btn-ghost" id="btn-reset-sample">サンプルに戻す</button>
       </div>
     </header>
 
-    <section class="brief-panel" aria-label="構成のたたき台">
-      <div class="brief-panel-top">
-        <div class="brief-intro">
-          <h2 class="brief-heading">構成のたたき台</h2>
-          <p class="brief-lead">
-            主目的・対象者・種別・ページ数から「構成を生成」で見出しレベルの仮スライドを並べます。
-          </p>
-        </div>
-        <div class="brief-actions-col">
-          <div class="brief-actions-row">
-            <button type="button" class="btn btn-primary btn-generate" id="btn-generate-outline">構成を生成（テンプレ）</button>
-            <button type="button" class="btn btn-primary" id="btn-generate-openai">OpenAI で構成を生成</button>
-          </div>
-          <p class="openai-hint" id="openai-hint">
-            <strong>OpenAI:</strong> 本番では Vercel の Environment Variables に <code>OPENAI_API_KEY</code> を登録してください。
-          </p>
-        </div>
-      </div>
-      <div class="brief-grid">
-        <div class="field field-purpose">
-          <label for="brief-purpose">1. スライドの主目的</label>
-          <textarea
-            id="brief-purpose"
-            name="brief-purpose"
-            rows="3"
-            placeholder="例：新サービスの導入メリットを経営層に理解してもらい、次回の詳細検討会の合意を得る"
-          ></textarea>
-        </div>
-        <div class="field">
-          <label for="brief-audience">2. 対象者</label>
-          <input
-            type="text"
-            id="brief-audience"
-            name="brief-audience"
-            autocomplete="off"
-            placeholder="例：経営企画部の部長クラス"
-          />
-        </div>
-        <div class="field">
-          <label for="brief-type">3. 種別</label>
-          <select id="brief-type" name="brief-type">
-            <option value="proposal">提案</option>
-            <option value="report">報告・共有</option>
-            <option value="training">研修・教育</option>
-            <option value="sales">営業・紹介</option>
-            <option value="explain" selected>説明・プレゼン</option>
-            <option value="other">その他</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="brief-pages">4. ページ数</label>
-          <input type="number" id="brief-pages" name="brief-pages" min="1" max="50" value="5" />
-        </div>
-      </div>
-    </section>
-
-    <main class="layout layout--preview-workspace">
-      <aside class="panel" aria-label="スライド一覧">
+    <div class="preview-workspace">
+      <aside class="preview-sidebar panel" aria-label="スライド一覧">
         <div class="panel-title">スライド一覧</div>
         <ul class="slide-list" id="slide-list"></ul>
-        <div class="panel-footer">
-          <button type="button" class="btn btn-primary" id="btn-add-slide" style="width: 100%">＋ スライドを追加</button>
-          <button type="button" class="btn btn-danger" id="btn-delete-slide" style="width: 100%; margin-top: 0.5rem">
-            選択中のスライドを削除
-          </button>
+        <div class="panel-footer preview-sidebar-footer">
+          <button type="button" class="btn btn-primary btn-block" id="btn-add-slide">＋ 追加</button>
+          <button type="button" class="btn btn-danger btn-block" id="btn-delete-slide">削除</button>
         </div>
       </aside>
 
-      <section class="panel editor-panel" aria-label="編集">
-        <div class="panel-title">編集</div>
-        <div class="editor-fields">
-          <div class="field">
-            <label for="slide-title">タイトル（見出し）</label>
-            <input type="text" id="slide-title" name="slide-title" autocomplete="off" placeholder="このスライドの見出し" />
-          </div>
-          <div class="field">
-            <label for="slide-body">
-              本文
-              <span class="hint"> — 空行で段落分け。行頭に <code>-</code> または <code>1.</code> 形式で箇条書きにできます。</span>
-            </label>
-            <textarea
-              id="slide-body"
-              name="slide-body"
-              placeholder="### 01 セクション&#10;## サブ見出し&#10;- 要点&#10;&#10;:::cards&#10;### カード1&#10;- 文&#10;### カード2&#10;### カード3&#10;:::&#10;&#10;:::compare&#10;### 左&#10;- 要点&#10;### 右&#10;- 要点&#10;:::"
-            ></textarea>
-            <p class="field-hint-below">記法: <code>###</code> セクション / <code>:::cards</code>〜<code>:::</code> 3カード / <code>:::compare</code> 対比 / <code>:::table</code> 表（|区切り）</p>
-          </div>
+      <div class="preview-workspace-main">
+        <div class="layout-preset-bar" id="layout-preset-bar" aria-label="デザインテンプレート"></div>
+        <div
+          class="slide-frame slide-frame--solo slide-frame--workspace"
+          id="slide-preview"
+          role="region"
+          aria-label="現在のスライド"
+        ></div>
+        <div class="preview-source-panel">
+          <label for="slide-body" class="preview-source-label">本文</label>
+          <textarea
+            id="slide-body"
+            name="slide-body"
+            class="slide-body-textarea-solo"
+            spellcheck="false"
+            placeholder=":::table または 箇条書き / :::media（左画像）"
+          ></textarea>
+          <p class="field-hint-below">
+            表（<code>:::table</code>）・箇条書き・<code>:::media</code> のいずれかで構造化してください。
+            <code>:::cards</code> / <code>:::compare</code> も利用可能です。
+          </p>
         </div>
-      </section>
-
-      <section class="panel preview-panel preview-panel--workspace" aria-label="現在のスライドのプレビュー">
-        <div class="panel-title">プレビュー（1枚）</div>
-        <div class="preview-current">
-          <div class="preview-label">16:9 の枠（内容のボリューム感の目安）</div>
-          <div class="slide-frame slide-frame--workspace" id="slide-preview" role="region" aria-live="polite"></div>
-        </div>
-      </section>
-
-      <section class="all-slides" aria-label="全スライドのサムネイル">
-        <div class="all-slides-header">
-          <span>全スライド（横スクロール）</span>
-        </div>
-        <div class="all-slides-scroll" id="thumb-strip"></div>
-      </section>
-    </main>
+      </div>
+    </div>
 
     <script src="client.js"></script>
   </body>

@@ -3,22 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>スライド内容案 — 編集（メイン）</title>
+    <meta name="theme-color" content="#0070b8" />
+    <title>スライド内容案 — 編集＆プレビュー</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="app-unified">
     <header class="app-header">
-      <div>
-        <h1>スライド内容案（編集）</h1>
-        <p>
-          一覧と本文の編集はこちら。プレビュー（16:9・サムネイル）は
-          <strong>「プレビューを生成」</strong>
-          で別タブを開いてください。データはブラウザに保存され、メインとプレビューで共有されます。
-        </p>
+      <div class="app-header-brand">
+        <p class="app-header-eyebrow">構成・下書き</p>
+        <h1>スライド内容案</h1>
+        <p>一覧でスライドを選び、<strong>下の枠がそのままプレビュー</strong>です。タイトルは枠内をクリックして編集。本文は記法どおりに書くと表・箇条書き・左画像レイアウトに整形されます。</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn btn-primary" id="btn-open-preview">プレビューを生成（別タブ）</button>
-        <button type="button" class="btn btn-primary" id="btn-export-html">HTML を書き出し</button>
+        <button type="button" class="btn btn-secondary" id="btn-export-html">HTML を書き出し</button>
         <button type="button" class="btn btn-ghost" id="btn-reset-sample">サンプルに戻す</button>
       </div>
     </header>
@@ -28,9 +31,9 @@
         <div class="brief-intro">
           <h2 class="brief-heading">構成のたたき台</h2>
           <p class="brief-lead">
-            主目的・対象者・種別・ページ数から「構成を生成」で見出しレベルの仮スライドを並べます。本文の具体文・HTML/CSS 一式は Cursor のチャットで
-            <code>batch/</code>
-            を参照して生成する想定です。
+            主目的・対象者・種別・ページ数から「構成を生成」で仮スライドを並べます。本文は表・箇条書き・
+            <code>:::media</code>
+            （左画像）のいずれかで構造化してください。
           </p>
         </div>
         <div class="brief-actions-col">
@@ -40,8 +43,8 @@
           </div>
           <p class="openai-hint" id="openai-hint">
             <strong>OpenAI:</strong>
-            <strong>いつも URL だけで使う</strong>なら Vercel にデプロイし、プロジェクトの Environment Variables に <code>OPENAI_API_KEY</code> を登録。本番 URL をブックマークすればターミナル不要です。
-            手元で試すときは <code>.env</code> にキーを書いて <code>npm run dev</code> → <code>http://localhost:8787/</code>。
+            Vercel の Environment Variables に <code>OPENAI_API_KEY</code> を登録。手元は <code>npm run dev</code> →
+            <code>http://localhost:8787/</code>。
           </p>
         </div>
       </div>
@@ -83,39 +86,65 @@
       </div>
     </section>
 
-    <main class="layout layout--editor-only">
-      <aside class="panel" aria-label="スライド一覧">
+    <main class="layout layout--unified" id="workspace-main">
+      <aside class="panel panel--list" aria-label="スライド一覧">
         <div class="panel-title">スライド一覧</div>
         <ul class="slide-list" id="slide-list"></ul>
         <div class="panel-footer">
-          <button type="button" class="btn btn-primary" id="btn-add-slide" style="width: 100%">＋ スライドを追加</button>
-          <button type="button" class="btn btn-danger" id="btn-delete-slide" style="width: 100%; margin-top: 0.5rem">
-            選択中のスライドを削除
-          </button>
+          <button type="button" class="btn btn-primary btn-block" id="btn-add-slide">＋ スライドを追加</button>
+          <button type="button" class="btn btn-danger btn-block btn-block--spaced" id="btn-delete-slide">選択中を削除</button>
         </div>
       </aside>
 
-      <section class="panel editor-panel" aria-label="編集">
-        <div class="panel-title">編集</div>
-        <div class="editor-fields">
-          <div class="field">
-            <label for="slide-title">タイトル（見出し）</label>
-            <input type="text" id="slide-title" name="slide-title" autocomplete="off" placeholder="このスライドの見出し" />
+      <div class="editor-workspace" aria-label="プレビューと編集">
+        <div class="workspace-toolbar">
+          <div class="workspace-nav" role="group" aria-label="スライド移動">
+            <button type="button" class="btn btn-ghost btn-icon" id="btn-prev-slide" aria-label="前のスライド">←</button>
+            <span class="workspace-counter" id="slide-counter" aria-live="polite">1 / 1</span>
+            <button type="button" class="btn btn-ghost btn-icon" id="btn-next-slide" aria-label="次のスライド">→</button>
           </div>
-          <div class="field">
-            <label for="slide-body">
-              本文
-              <span class="hint"> — 空行で段落分け。行頭に <code>-</code> または <code>1.</code> 形式で箇条書きにできます。</span>
-            </label>
-            <textarea
-              id="slide-body"
-              name="slide-body"
-              placeholder="### 01 セクション&#10;## サブ見出し&#10;- 要点&#10;&#10;:::cards&#10;### カード1&#10;- 文&#10;### カード2&#10;### カード3&#10;:::&#10;&#10;:::compare&#10;### 左&#10;- 要点&#10;### 右&#10;- 要点&#10;:::"
-            ></textarea>
-            <p class="field-hint-below">記法: <code>###</code> セクション / <code>:::cards</code>〜<code>:::</code> 3カード / <code>:::compare</code> 対比 / <code>:::table</code> 表（|区切り）</p>
-          </div>
+          <div class="layout-preset-bar" id="layout-preset-bar" aria-label="デザインテンプレート"></div>
         </div>
-      </section>
+
+        <div class="workspace-canvas">
+          <div
+            class="slide-frame slide-frame--solo slide-frame--workspace"
+            id="slide-preview"
+            role="region"
+            aria-label="スライドプレビュー（タイトルはクリックして編集）"
+          ></div>
+        </div>
+
+        <div class="workspace-source">
+          <label for="slide-body" class="workspace-source-label">本文（ソース）</label>
+          <textarea
+            id="slide-body"
+            name="slide-body"
+            class="workspace-body-textarea"
+            spellcheck="false"
+            placeholder=":::table&#10;| 列A | 列B |&#10;| --- | --- |&#10;|  |  |&#10;:::&#10;&#10;または 箇条書き:&#10;- 要点1&#10;- 要点2&#10;&#10;左画像:&#10;:::media&#10;https://画像URL&#10;### 右側の見出し&#10;- 説明&#10;:::"
+          ></textarea>
+          <p class="field-hint-below workspace-hint">
+            プレーンな文章だけにしないでください。
+            <strong>表</strong>
+            （
+            <code>:::table</code>
+            ）・
+            <strong>箇条書き</strong>
+            （行頭
+            <code>-</code>
+            ）・
+            <strong>左画像</strong>
+            （
+            <code>:::media</code>
+            1行目に画像URL、その下に本文）のいずれかを使ってください。
+            <code>:::cards</code>
+            /
+            <code>:::compare</code>
+            も利用可能です。
+          </p>
+        </div>
+      </div>
     </main>
 
     <script src="client.js"></script>
