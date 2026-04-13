@@ -1,9 +1,9 @@
 /**
  * Vercel Serverless: POST /api/generate-slides
- * 環境変数: OPENAI_API_KEY（必須）, OPENAI_MODEL（任意）
+ * CommonJS（module.exports）— package.json の "type":"module" だと
+ * Vercel の一部環境で ESM default export が FUNCTION_INVOCATION_FAILED になることがあるため。
  *
- * 注意: Vercel 上では for-await で req を読むとクラッシュすることがあるため、
- * req.on("data") で読む。
+ * 環境変数: OPENAI_API_KEY（必須）, OPENAI_MODEL（任意）
  */
 
 function sendJson(res, statusCode, obj) {
@@ -12,17 +12,33 @@ function sendJson(res, statusCode, obj) {
   res.end(JSON.stringify(obj));
 }
 
-/** @param {import("http").IncomingMessage} req */
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let total = 0;
     let settled = false;
+    const done = (err, val) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(val);
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      if (chunks.length === 0) {
+        done(null, "");
+      } else {
+        done(new Error("Body read timeout"));
+      }
+    }, 15000);
+
     req.on("data", (chunk) => {
       if (settled) return;
       total += chunk.length;
       if (total > 200_000) {
         settled = true;
+        clearTimeout(timer);
         req.destroy();
         reject(Object.assign(new Error("Body too large"), { code: "BODY_LIMIT" }));
         return;
@@ -30,28 +46,43 @@ function readBody(req) {
       chunks.push(chunk);
     });
     req.on("end", () => {
-      if (settled) return;
-      settled = true;
       try {
-        resolve(Buffer.concat(chunks).toString("utf8"));
+        done(null, Buffer.concat(chunks).toString("utf8"));
       } catch (e) {
-        reject(e);
+        done(e);
       }
     });
-    req.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      reject(err);
-    });
+    req.on("error", (err) => done(err));
   });
 }
 
 async function parseBrief(req) {
-  if (req.body != null && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
-    return req.body;
+  const b = req.body;
+  if (b != null) {
+    if (typeof b === "string") {
+      try {
+        return JSON.parse(b || "{}");
+      } catch {
+        throw Object.assign(new Error("invalid json"), { code: "BAD_JSON" });
+      }
+    }
+    if (Buffer.isBuffer(b)) {
+      try {
+        return JSON.parse(b.toString("utf8") || "{}");
+      } catch {
+        throw Object.assign(new Error("invalid json"), { code: "BAD_JSON" });
+      }
+    }
+    if (typeof b === "object") {
+      return b;
+    }
   }
   const raw = await readBody(req);
-  return JSON.parse(raw || "{}");
+  try {
+    return JSON.parse(raw || "{}");
+  } catch {
+    throw Object.assign(new Error("invalid json"), { code: "BAD_JSON" });
+  }
 }
 
 async function generateSlidesFromBrief(brief) {
@@ -115,7 +146,7 @@ slides の配列の長さはユーザー指定の枚数と一致させる。`,
     let detail = raw;
     try {
       const j = JSON.parse(raw);
-      detail = j.error?.message || raw;
+      detail = j.error && j.error.message ? j.error.message : raw;
     } catch {
       /* ignore */
     }
@@ -125,7 +156,7 @@ slides の配列の長さはユーザー指定の枚数と一致させる。`,
   }
 
   const data = JSON.parse(raw);
-  const text = data.choices?.[0]?.message?.content;
+  const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (!text) {
     const err = new Error("OpenAI から本文が返りませんでした");
     err.code = "EMPTY";
@@ -150,14 +181,14 @@ slides の配列の長さはユーザー指定の枚数と一致させる。`,
 
   return {
     slides: slides.map((s) => ({
-      title: String(s.title ?? "").trim(),
-      body: String(s.body ?? "").trim(),
+      title: String(s.title != null ? s.title : "").trim(),
+      body: String(s.body != null ? s.body : "").trim(),
     })),
     model,
   };
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
@@ -187,9 +218,9 @@ export default async function handler(req, res) {
 
     const pageCount = Math.min(50, Math.max(1, parseInt(String(brief.pageCount), 10) || 5));
     const result = await generateSlidesFromBrief({
-      purpose: String(brief.purpose ?? ""),
-      audience: String(brief.audience ?? ""),
-      type: String(brief.type ?? "explain"),
+      purpose: String(brief.purpose != null ? brief.purpose : ""),
+      audience: String(brief.audience != null ? brief.audience : ""),
+      type: String(brief.type != null ? brief.type : "explain"),
       pageCount,
     });
     sendJson(res, 200, { ok: true, slides: result.slides, model: result.model });
@@ -203,4 +234,4 @@ export default async function handler(req, res) {
       res.end();
     }
   }
-}
+};

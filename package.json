@@ -2,7 +2,6 @@
   "name": "genspark-slide-preview",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "description": "スライド案プレビュー（静的）+ Cursor/batch 用ブリーフ",
   "scripts": {
     "dev": "node server.mjs",
