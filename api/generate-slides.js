@@ -1,10 +1,15 @@
 /**
  * Vercel Serverless: POST /api/generate-slides
- * CommonJS（module.exports）— package.json の "type":"module" だと
- * Vercel の一部環境で ESM default export が FUNCTION_INVOCATION_FAILED になることがあるため。
+ * CommonJS（module.exports）
  *
- * 環境変数: OPENAI_API_KEY（必須）, OPENAI_MODEL（任意）
+ * 注意: Vercel 上でリクエストボディのストリームが既に消費されていると
+ * data/end が来ずハングし、既定の関数タイムアウトで FUNCTION_INVOCATION_FAILED になる。
+ * readableEnded チェック・短いタイムアウトで回避する。
+ *
+ * OpenAI 呼び出しは fetch ではなく node:https で行い、ランタイム差を避ける。
  */
+
+const https = require("node:https");
 
 function sendJson(res, statusCode, obj) {
   res.statusCode = statusCode;
@@ -17,28 +22,40 @@ function readBody(req) {
     const chunks = [];
     let total = 0;
     let settled = false;
-    const done = (err, val) => {
+    let timer;
+
+    const finish = (err, val) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       if (err) reject(err);
       else resolve(val);
     };
-    const timer = setTimeout(() => {
+
+    if (req.readableEnded) {
+      finish(null, "");
+      return;
+    }
+
+    timer = setTimeout(() => {
       if (settled) return;
       if (chunks.length === 0) {
-        done(null, "");
+        finish(null, "");
       } else {
-        done(new Error("Body read timeout"));
+        try {
+          finish(null, Buffer.concat(chunks).toString("utf8"));
+        } catch (e) {
+          finish(e);
+        }
       }
-    }, 15000);
+    }, 3000);
 
     req.on("data", (chunk) => {
       if (settled) return;
       total += chunk.length;
       if (total > 200_000) {
         settled = true;
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         req.destroy();
         reject(Object.assign(new Error("Body too large"), { code: "BODY_LIMIT" }));
         return;
@@ -47,12 +64,41 @@ function readBody(req) {
     });
     req.on("end", () => {
       try {
-        done(null, Buffer.concat(chunks).toString("utf8"));
+        finish(null, Buffer.concat(chunks).toString("utf8"));
       } catch (e) {
-        done(e);
+        finish(e);
       }
     });
-    req.on("error", (err) => done(err));
+    req.on("error", (err) => finish(err));
+  });
+}
+
+function postJsonHttps(urlStr, headers, body) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(urlStr);
+    const opts = {
+      hostname: u.hostname,
+      port: u.port || 443,
+      path: u.pathname + u.search,
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Length": Buffer.byteLength(body, "utf8"),
+      },
+    };
+    const req = https.request(opts, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        resolve({
+          status: res.statusCode || 0,
+          body: Buffer.concat(chunks).toString("utf8"),
+        });
+      });
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
   });
 }
 
@@ -118,31 +164,29 @@ async function generateSlidesFromBrief(brief) {
     "JSON 以外の文字は出力しないこと。",
   ].join("\n");
 
-  const ores = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `あなたはプレゼン資料の構成案を作るアシスタントです。
+  const payload = JSON.stringify({
+    model,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: `あなたはプレゼン資料の構成案を作るアシスタントです。
 必ず次のJSON形式のみを返すこと（キーは英語のまま）:
 {"slides":[{"title":"スライドの見出し","body":"本文。箇条書きは行頭に - を使う。\\nで改行。"}]}
 slides の配列の長さはユーザー指定の枚数と一致させる。`,
-        },
-        { role: "user", content: userContent },
-      ],
-      temperature: 0.7,
-    }),
+      },
+      { role: "user", content: userContent },
+    ],
+    temperature: 0.7,
   });
 
-  const raw = await ores.text();
-  if (!ores.ok) {
+  const ores = await postJsonHttps("https://api.openai.com/v1/chat/completions", {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  }, payload);
+
+  const raw = ores.body;
+  if (ores.status < 200 || ores.status >= 300) {
     let detail = raw;
     try {
       const j = JSON.parse(raw);
