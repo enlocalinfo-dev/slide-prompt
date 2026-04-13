@@ -56,7 +56,7 @@ python3 -m http.server 8765
 Vercel にデプロイしたあと、**一度だけ**ダッシュボードで環境変数を登録します。
 
 1. Vercel → 該当プロジェクト → **Settings → Environment Variables**  
-2. `OPENAI_API_KEY` に `sk-...` を保存（Production にチェック）。必要なら `OPENAI_MODEL`（例: `gpt-4o-mini`）も。  
+2. `OPENAI_API_KEY` に `sk-...` を保存（Production にチェック）。既定は `gpt-5.4`。コスト優先なら `OPENAI_MODEL` に `gpt-5.4-mini` などを設定。  
 3. **Redeploy**（または次回 `git push` で自動デプロイ）。  
 4. ブラウザで **`https://（あなたのプロジェクト）.vercel.app/`** をブックマーク。以後は **URL を開くだけ**で「OpenAI で構成を生成」が動きます。
 
