@@ -522,6 +522,7 @@ function init() {
     bodyInput: document.getElementById("slide-body"),
     preview: document.getElementById("slide-preview"),
     thumbStrip: document.getElementById("thumb-strip"),
+    btnOpenPreview: document.getElementById("btn-open-preview"),
     btnAdd: document.getElementById("btn-add-slide"),
     btnDel: document.getElementById("btn-delete-slide"),
     btnExport: document.getElementById("btn-export-html"),
@@ -534,6 +535,16 @@ function init() {
     briefType: document.getElementById("brief-type"),
     briefPages: document.getElementById("brief-pages"),
   };
+
+  function applyExternalState() {
+    const next = loadState();
+    state = {
+      slides: Array.isArray(next.slides) && next.slides.length ? next.slides : [{ title: "", body: "" }],
+      brief: normalizeBrief(next.brief || {}),
+    };
+    activeIndex = Math.max(0, Math.min(activeIndex, state.slides.length - 1));
+    render();
+  }
 
   function persist() {
     saveState(state);
@@ -574,23 +585,27 @@ function init() {
 
     els.titleInput.value = slide.title;
     els.bodyInput.value = slide.body;
-    els.preview.innerHTML = renderSlideInner(slide);
+    if (els.preview) {
+      els.preview.innerHTML = renderSlideInner(slide);
+    }
 
-    els.thumbStrip.innerHTML = state.slides
-      .map(
-        (s, i) => `
+    if (els.thumbStrip) {
+      els.thumbStrip.innerHTML = state.slides
+        .map(
+          (s, i) => `
       <button type="button" class="thumb ${i === activeIndex ? "is-active" : ""}" data-index="${i}" title="スライド ${i + 1}">
         <div class="thumb-inner">
           <p class="thumb-title">${escapeHtml(s.title.trim() || "（無題）")}</p>
           ${thumbBodyPreview(s.body)}
         </div>
       </button>`
-      )
-      .join("");
+        )
+        .join("");
 
-    els.thumbStrip.querySelectorAll(".thumb").forEach((btn) => {
-      btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
-    });
+      els.thumbStrip.querySelectorAll(".thumb").forEach((btn) => {
+        btn.addEventListener("click", () => setActive(Number(btn.dataset.index)));
+      });
+    }
 
     writeBriefToForm(state.brief, els);
   }
@@ -609,7 +624,9 @@ function init() {
       body: els.bodyInput.value,
     };
     persist();
-    els.preview.innerHTML = renderSlideInner(state.slides[activeIndex]);
+    if (els.preview) {
+      els.preview.innerHTML = renderSlideInner(state.slides[activeIndex]);
+    }
     syncListAndThumbsFromState();
   }
 
@@ -624,6 +641,7 @@ function init() {
       }
     });
 
+    if (!els.thumbStrip) return;
     els.thumbStrip.querySelectorAll(".thumb").forEach((btn, i) => {
       const s = state.slides[i];
       btn.classList.toggle("is-active", i === activeIndex);
@@ -634,6 +652,18 @@ function init() {
       }
     });
   }
+
+  if (els.btnOpenPreview) {
+    els.btnOpenPreview.addEventListener("click", () => {
+      persist();
+      window.open("preview.html", "_blank", "noopener,noreferrer");
+    });
+  }
+
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORAGE_KEY || e.newValue == null) return;
+    applyExternalState();
+  });
 
   els.titleInput.addEventListener("input", onFieldInput);
   els.bodyInput.addEventListener("input", onFieldInput);

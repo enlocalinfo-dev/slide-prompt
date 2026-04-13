@@ -242,6 +242,12 @@ body {
   max-height: 100%;
 }
 
+/* メイン画面: 一覧 + 編集のみ（プレビューは別タブ） */
+.layout--editor-only {
+  grid-template-columns: minmax(220px, 260px) minmax(320px, 1fr);
+  grid-template-rows: 1fr;
+}
+
 @media (max-width: 1024px) {
   .layout {
     grid-template-columns: 1fr;
@@ -249,6 +255,29 @@ body {
     height: auto;
     max-height: none;
   }
+
+  .layout--editor-only {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+}
+
+/* 別タブのプレビュー作業ページ: 縦スクロール許可 */
+html.page-preview-root {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+body.page-preview-workspace {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100vh;
+}
+
+.slide-frame.slide-frame--workspace {
+  max-width: min(960px, 100%);
+  width: 100%;
 }
 
 .panel {

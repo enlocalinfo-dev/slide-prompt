@@ -1,23 +1,21 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="page-preview-root">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>スライド内容案 — 編集（メイン）</title>
+    <title>スライド内容案 — プレビュー作業</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="page-preview-workspace">
     <header class="app-header">
       <div>
-        <h1>スライド内容案（編集）</h1>
+        <h1>プレビュー作業（別タブ）</h1>
         <p>
-          一覧と本文の編集はこちら。プレビュー（16:9・サムネイル）は
-          <strong>「プレビューを生成」</strong>
-          で別タブを開いてください。データはブラウザに保存され、メインとプレビューで共有されます。
+          16:9 の枠で内容を確認・編集します。メイン画面と同じデータ（ブラウザ保存）を共有します。別タブでメインを開いている場合、どちらかで保存すると他方も更新されます。
         </p>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn btn-primary" id="btn-open-preview">プレビューを生成（別タブ）</button>
+        <a class="btn btn-ghost" href="index.html">← メイン画面へ</a>
         <button type="button" class="btn btn-primary" id="btn-export-html">HTML を書き出し</button>
         <button type="button" class="btn btn-ghost" id="btn-reset-sample">サンプルに戻す</button>
       </div>
@@ -28,9 +26,7 @@
         <div class="brief-intro">
           <h2 class="brief-heading">構成のたたき台</h2>
           <p class="brief-lead">
-            主目的・対象者・種別・ページ数から「構成を生成」で見出しレベルの仮スライドを並べます。本文の具体文・HTML/CSS 一式は Cursor のチャットで
-            <code>batch/</code>
-            を参照して生成する想定です。
+            主目的・対象者・種別・ページ数から「構成を生成」で見出しレベルの仮スライドを並べます。
           </p>
         </div>
         <div class="brief-actions-col">
@@ -39,9 +35,7 @@
             <button type="button" class="btn btn-primary" id="btn-generate-openai">OpenAI で構成を生成</button>
           </div>
           <p class="openai-hint" id="openai-hint">
-            <strong>OpenAI:</strong>
-            <strong>いつも URL だけで使う</strong>なら Vercel にデプロイし、プロジェクトの Environment Variables に <code>OPENAI_API_KEY</code> を登録。本番 URL をブックマークすればターミナル不要です。
-            手元で試すときは <code>.env</code> にキーを書いて <code>npm run dev</code> → <code>http://localhost:8787/</code>。
+            <strong>OpenAI:</strong> 本番では Vercel の Environment Variables に <code>OPENAI_API_KEY</code> を登録してください。
           </p>
         </div>
       </div>
@@ -83,7 +77,7 @@
       </div>
     </section>
 
-    <main class="layout layout--editor-only">
+    <main class="layout layout--preview-workspace">
       <aside class="panel" aria-label="スライド一覧">
         <div class="panel-title">スライド一覧</div>
         <ul class="slide-list" id="slide-list"></ul>
@@ -115,6 +109,21 @@
             <p class="field-hint-below">記法: <code>###</code> セクション / <code>:::cards</code>〜<code>:::</code> 3カード / <code>:::compare</code> 対比 / <code>:::table</code> 表（|区切り）</p>
           </div>
         </div>
+      </section>
+
+      <section class="panel preview-panel preview-panel--workspace" aria-label="現在のスライドのプレビュー">
+        <div class="panel-title">プレビュー（1枚）</div>
+        <div class="preview-current">
+          <div class="preview-label">16:9 の枠（内容のボリューム感の目安）</div>
+          <div class="slide-frame slide-frame--workspace" id="slide-preview" role="region" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="all-slides" aria-label="全スライドのサムネイル">
+        <div class="all-slides-header">
+          <span>全スライド（横スクロール）</span>
+        </div>
+        <div class="all-slides-scroll" id="thumb-strip"></div>
       </section>
     </main>
 
